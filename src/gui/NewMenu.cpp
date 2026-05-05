@@ -212,6 +212,13 @@ static bool isColorTextSetting(const std::string &setting_id)
 		setting_id.find(".color") != std::string::npos;
 }
 
+static bool isColorCheatSetting(const ScriptApiCheatsCheatSetting *setting)
+{
+	return setting != nullptr &&
+		(setting->m_type == "color" ||
+			(setting->m_type == "text" && isColorTextSetting(setting->m_setting)));
+}
+
 struct HSVColor {
 	float h = 0.0f;
 	float s = 0.0f;
@@ -1018,6 +1025,8 @@ void NewMenu::create()
                         cheatSettingTextFields[i][c][s]->setWordWrap(true);
                         cheatSettingTextFields[i][c][s]->setOverrideColor(video::SColor(173, 35, 45, 56));
                         cheatSettingTextFields[i][c][s]->setVisible(false);
+                    } else if (script->m_cheat_categories[i]->m_cheats[c]->m_cheat_settings[s]->m_type == "color") {
+                        cheatSettingTextFields[i][c][s] = nullptr;
                     } else if (script->m_cheat_categories[i]->m_cheats[c]->m_cheat_settings[s]->m_type == "selectionbox") {
                         for (size_t o = 0; o < script->m_cheat_categories[i]->m_cheats[c]->m_cheat_settings[s]->m_options.size(); ++o) {
                             cheatSettingOptionHovered[i][c][s].resize(script->m_cheat_categories[i]->m_cheats[c]->m_cheat_settings[s]->m_options.size(), false);
@@ -1178,11 +1187,11 @@ s32 NewMenu::respaceMenu(size_t i)
                     if (script->m_cheat_categories[i]->m_cheats[c]->m_cheat_settings[s]->m_type == "selectionbox" || script->m_cheat_categories[i]->m_cheats[c]->m_cheat_settings[s]->m_type == "slider_int" || script->m_cheat_categories[i]->m_cheats[c]->m_cheat_settings[s]->m_type == "slider_float") {
                         cheatSettingRects[i][c][s] = core::rect<s32>(cheat_setting_positions[i][c][s].X,                  cheat_setting_positions[i][c][s].Y, 
                                                                     cheat_setting_positions[i][c][s].X + category_width, cheat_setting_positions[i][c][s].Y + category_height * 2);
-                    } else if (script->m_cheat_categories[i]->m_cheats[c]->m_cheat_settings[s]->m_type == "text") {
+                    } else if (script->m_cheat_categories[i]->m_cheats[c]->m_cheat_settings[s]->m_type == "text" ||
+                            script->m_cheat_categories[i]->m_cheats[c]->m_cheat_settings[s]->m_type == "color") {
                         cheatSettingRects[i][c][s] = core::rect<s32>(cheat_setting_positions[i][c][s].X,                  cheat_setting_positions[i][c][s].Y, 
                                                                     cheat_setting_positions[i][c][s].X + category_width, cheat_setting_positions[i][c][s].Y + category_height * 4);
-                        const std::string setting_id = script->m_cheat_categories[i]->m_cheats[c]->m_cheat_settings[s]->m_setting;
-                        if (isColorTextSetting(setting_id)) {
+                        if (isColorCheatSetting(script->m_cheat_categories[i]->m_cheats[c]->m_cheat_settings[s])) {
                             cheatSettingTextFields[i][c][s] = nullptr;
                             cheatSettingTextRects[i][c][s] = getColorValueRect(
                                 cheatSettingRects[i][c][s], category_height, setting_bar_padding, setting_bar_width);
@@ -1336,9 +1345,7 @@ bool NewMenu::OnEvent(const irr::SEvent& event)
 
                         for (size_t s = 0; s < script->m_cheat_categories[i]->m_cheats[c]->m_cheat_settings.size(); ++s) {
                             if (selectedCheat[i][c]) {
-                        const std::string setting_id = script->m_cheat_categories[i]->m_cheats[c]->m_cheat_settings[s]->m_setting;
-                        if (script->m_cheat_categories[i]->m_cheats[c]->m_cheat_settings[s]->m_type == "text" &&
-                                isColorTextSetting(setting_id)) {
+                        if (isColorCheatSetting(script->m_cheat_categories[i]->m_cheats[c]->m_cheat_settings[s])) {
                             const core::rect<s32> color_rect = cheatSettingTextRects[i][c][s];
                             if (color_rect.isPointInside(core::vector2d<s32>(event.MouseInput.X, event.MouseInput.Y))) {
                                 if (isColorSelecting &&
@@ -1818,7 +1825,7 @@ void NewMenu::drawCategory(video::IVideoDriver* driver, gui::IGUIFont* font, con
                             } else {
                                 driver->draw2DRectangle(sliderColor, cheatSliderRects[i][cheat_index][s]);
                             }
-                        } else if (cheatSetting->m_type == "text") {
+                        } else if (cheatSetting->m_type == "text" || cheatSetting->m_type == "color") {
                             const std::string setting_id = script->m_cheat_categories[i]->m_cheats[cheat_index]->m_cheat_settings[s]->m_setting;
                             const std::wstring &wSettingName = cachedWideFromUtf8(cheatSetting->m_name);
                             textSizeU32 = cachedTextDimension(font, wSettingName);
@@ -1834,7 +1841,7 @@ void NewMenu::drawCategory(video::IVideoDriver* driver, gui::IGUIFont* font, con
 
                             font->draw(wSettingName.c_str(), core::rect<s32>(textX, textY, textX + textSize.Width, textY + textSize.Height), text_color);
 
-                            if (isColorTextSetting(setting_id)) {
+                            if (isColorCheatSetting(cheatSetting)) {
                                 const core::rect<s32> color_rect = cheatSettingTextRects[i][cheat_index][s];
                                 const video::SColor swatch_color = colorFromSettingText(g_settings->get(setting_id), video::SColor(255, 255, 255, 255));
                                 const core::rect<s32> inner_rect(
