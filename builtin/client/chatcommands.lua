@@ -154,6 +154,27 @@ function core.run_server_chatcommand(cmd, param)
 	core.send_chat_message("/" .. cmd .. " " .. param)
 end
 
+local function forward_server_chatcommand(command, param)
+	core.run_server_chatcommand(command, param)
+	return true
+end
+
+core.register_chatcommand("waypoint", {
+	params = "[list | set <name> <color> | death clear]",
+	description = "Forward waypoint management to the server",
+	func = function(param)
+		return forward_server_chatcommand("waypoint", param)
+	end,
+})
+
+core.register_chatcommand("waypoints", {
+	params = "[list | set <name> <color> | death clear]",
+	description = "Forward waypoint management to the server",
+	func = function(param)
+		return forward_server_chatcommand("waypoints", param)
+	end,
+})
+
 core.register_list_command("xray", "Configure X-Ray", "xray.nodes")
 core.register_list_command("search", "Configure NodeESP", "enable_node_esp.nodes")
 core.register_player_list_command("friend", "Configure Friends.", "friends")

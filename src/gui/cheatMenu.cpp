@@ -22,10 +22,10 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "client/client.h"
 #include "client/fontengine.h"
 #include "cheatMenu.h"
-#include "client/minimap.h"
+#include "gui/cheatHUD.h"
 #include "settings.h"
 #include <cstddef>
-
+#include <algorithm>
 
 FontMode CheatMenu::fontStringToEnum(std::string str)
 {
@@ -51,9 +51,9 @@ CheatMenu::CheatMenu(Client *client) : m_client(client)
 	v3f bg_color, active_bg_color, font_color, selected_font_color;
 
 	bg_color = g_settings->getV3F("cheat_menu_bg_color").value_or(v3f(10, 15, 20));
-    active_bg_color = g_settings->getV3F("cheat_menu_active_bg_color").value_or(v3f(50, 80, 175));
-    font_color = g_settings->getV3F("cheat_menu_font_color").value_or(v3f(255, 255, 255));
-    selected_font_color = g_settings->getV3F("cheat_menu_selected_font_color").value_or(v3f(0, 0, 0));
+	active_bg_color = g_settings->getV3F("cheat_menu_active_bg_color").value_or(v3f(50, 80, 175));
+	font_color = g_settings->getV3F("cheat_menu_font_color").value_or(v3f(255, 255, 255));
+	selected_font_color = g_settings->getV3F("cheat_menu_selected_font_color").value_or(v3f(0, 0, 0));
 
 
 	m_bg_color = video::SColor(g_settings->getU32("cheat_menu_bg_color_alpha"),
@@ -74,7 +74,6 @@ CheatMenu::CheatMenu(Client *client) : m_client(client)
 	m_head_height = g_settings->getU32("cheat_menu_head_height");
 	m_entry_height = g_settings->getU32("cheat_menu_entry_height");
 	m_entry_width = g_settings->getU32("cheat_menu_entry_width");
-
 	FontSpec fontSpec(g_fontengine->getDefaultFontSize(), fontMode, true /* bold */, false /* italic */);
 	m_font = g_fontengine->getFont(fontSpec);
 
@@ -87,6 +86,16 @@ CheatMenu::CheatMenu(Client *client) : m_client(client)
 	}
 	m_fontsize.X = MYMAX(m_fontsize.X, 1);
 	m_fontsize.Y = MYMAX(m_fontsize.Y, 1);
+
+	const int min_row_height = static_cast<int>(m_fontsize.Y) + 8;
+	m_head_height = std::max(m_head_height, min_row_height);
+	m_entry_height = std::max(m_entry_height, min_row_height);
+}
+
+CheatMenu::~CheatMenu()
+{
+	if (m_font)
+		m_font->drop();
 }
 
 void CheatMenu::draw2DRectangleOutline(video::IVideoDriver *driver, const core::recti& pos, video::SColor color) {
@@ -111,7 +120,7 @@ void CheatMenu::drawRect(video::IVideoDriver *driver, std::string name,
 
 		driver->draw2DRectangle(*bgcolor, core::rect<s32>(x, y, x + width, y + height));
 
-		if (selected)
+	if (selected)
 				driver->draw2DRectangleOutline(
 					core::rect<s32>(x - 1, y - 1, x + width, y + height),
 					*fontcolor);
@@ -164,9 +173,13 @@ int negmod(int n, int base)
 
 void CheatMenu::draw(video::IVideoDriver *driver, bool show_debug)
 {
-    CHEAT_MENU_GET_SCRIPTPTR
+	CHEAT_MENU_GET_SCRIPTPTR
 
-    m_head_height = (!show_debug ? 1 : g_settings->getU32("cheat_menu_head_height"));
+	const int min_row_height = static_cast<int>(m_fontsize.Y) + 8;
+	m_head_height = std::max<int>(show_debug ? g_settings->getU32("cheat_menu_head_height") : min_row_height,
+		min_row_height);
+	m_entry_height = std::max<int>(g_settings->getU32("cheat_menu_entry_height"), min_row_height);
+
     int category_count = 0;
 
     // Calculate dimensions for the category section outline
@@ -176,11 +189,11 @@ void CheatMenu::draw(video::IVideoDriver *driver, bool show_debug)
     int category_section_height = ((m_head_height + (m_entry_height * script->m_cheat_categories.size()))-m_head_height)-m_entry_height; // Total height based on number of categories
 
     // Define padding for the outline and thickness
-    const int padding = 0; // Space between outline and categories
-    const int outline_thickness = 3; // Thickness of the outline
+	const int padding = 0; // Space between outline and categories
+	const int outline_thickness = 3; // Thickness of the outline
 
-    // Draw multiple rectangles to create a thicker outline
-    for (int i = 0; i < outline_thickness; ++i) {
+	// Draw multiple rectangles to create a thicker outline
+	for (int i = 0; i < outline_thickness; ++i) {
         driver->draw2DRectangleOutline(
             core::rect<s32>(
                 category_section_x - padding - i, 
@@ -240,121 +253,8 @@ void CheatMenu::draw(video::IVideoDriver *driver, bool show_debug)
 void CheatMenu::drawHUD(video::IVideoDriver *driver, double dtime)
 {
 	CHEAT_MENU_GET_SCRIPTPTR
-
-	m_rainbow_offset += dtime;
-
-	m_rainbow_offset = fmod(m_rainbow_offset, 6.0f);
-
-	std::vector<std::pair<std::string, core::dimension2d<u32>>> enabled_cheats;
-
-	int cheat_count = 0;
-
-	for (auto category = script->m_cheat_categories.begin();
-			category != script->m_cheat_categories.end(); category++) {
-		for (auto cheat = (*category)->m_cheats.begin();
-				cheat != (*category)->m_cheats.end(); cheat++) {
-			if ((*cheat)->is_enabled()) {
-				std::string cheat_str = (*cheat)->m_name;
-				std::string info_text = (*cheat)->get_info_text();
-				if (!info_text.empty()) {
-					cheat_str += " [" + info_text + "]";
-				}
-				core::dimension2d<u32> dim =
-							m_font->getDimension(utf8_to_wide(cheat_str).c_str());
-				enabled_cheats.push_back(std::make_pair(cheat_str, dim));
-				cheat_count++;
-			}
-		}
-	}
-
-	if (enabled_cheats.empty())
-		return;
-
-	core::dimension2d<u32> screensize = driver->getScreenSize();
-	u32 y = 5 + g_settings->getS32("cheat_hud.offset");
-	
-	std::sort(enabled_cheats.begin(), enabled_cheats.end(),
-			  [](const auto &a, const auto &b) {
-				  return a.second.Width > b.second.Width;
-			  });
-
-	Minimap *mapper = m_client->getMinimap();
-
-	bool renderBottom = (mapper != nullptr && mapper->getModeIndex() != 0) || g_settings->get("cheat_hud.position") == "Bottom";
-
-	if (renderBottom) {
-		y = (screensize.Height - 18) - g_settings->getS32("cheat_hud.offset");
-	}
-
-	std::vector<video::SColor> colors;
-
-	for (int i = 0; i < cheat_count; i++) {
-		video::SColor color = video::SColor(255, 0, 0, 0);
-		f32 h = (f32)i * 2.0f / (f32)cheat_count - m_rainbow_offset;
-		if (h < 0)
-			h = 6.0f + h;
-		f32 x = (1 - fabs(fmod(h, 2.0f) - 1.0f)) * 255.0f;
-		switch ((int)h) {
-		case 0:
-			color = video::SColor(255, 255, x, 0);
-			break;
-		case 1:
-			color = video::SColor(255, x, 255, 0);
-			break;
-		case 2:
-			color = video::SColor(255, 0, 255, x);
-			break;
-		case 3:
-			color = video::SColor(255, 0, x, 255);
-			break;
-		case 4:
-			color = video::SColor(255, x, 0, 255);
-			break;
-		case 5:
-			color = video::SColor(255, 255, 0, x);
-			break;
-		}
-		colors.push_back(color);
-	}
-
-	int i = 0;
-	video::SColor infoColor(230, 230, 230, 230);
-	for (std::pair<std::string, core::dimension2d<u32>> &cheat : enabled_cheats) {
-		std::string cheat_full_str = cheat.first;
-		core::dimension2d<u32> dim = cheat.second;
-
-		size_t brace_position = cheat_full_str.find('[');
-		if (brace_position != std::string::npos) {
-			std::string cheat_str = cheat_full_str.substr(0, brace_position);
-			std::string info_str = cheat_full_str.substr(brace_position);
-
-			core::dimension2d<u32> cheat_dim = m_font->getDimension(utf8_to_wide(cheat_str).c_str());
-			core::dimension2d<u32> info_dim = m_font->getDimension(utf8_to_wide(info_str).c_str());
-
-			u32 x_cheat = screensize.Width - 5 - dim.Width;
-			u32 x_info = x_cheat + cheat_dim.Width;
-
-			core::rect<s32> cheat_bounds(x_cheat, y, x_cheat + cheat_dim.Width, y + cheat_dim.Height);
-			m_font->draw(cheat_str.c_str(), cheat_bounds, colors[i], false, false);
-
-			core::rect<s32> info_bounds(x_info, y, x_info + info_dim.Width, y + info_dim.Height);
-			m_font->draw(info_str.c_str(), info_bounds, infoColor, false, false);
-
-		} else {
-			u32 x = screensize.Width - 5 - dim.Width;
-
-			core::rect<s32> cheat_bounds(x, y, x + dim.Width, y + dim.Height);
-			m_font->draw(cheat_full_str.c_str(), cheat_bounds, colors[i], false, false);
-		}
-
-		if (renderBottom) {
-			y -= dim.Height;
-		} else {
-			y += dim.Height;
-		}
-
-		i++;
-	}
+	CheatHUD hud(m_client, core::rect<s32>(0, 0, 0, 0));
+	hud.draw(driver, m_font, dtime, m_client->getEnv(), false);
 }
 
 void CheatMenu::selectUp()

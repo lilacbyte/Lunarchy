@@ -101,6 +101,22 @@ local function find_selected_server()
 	end
 end
 
+local function account_list_text()
+	local accounts = account_manager and account_manager.get_accounts and account_manager.get_accounts() or {}
+	local names = {}
+	if #accounts == 0 then
+		return fgettext("No accounts saved")
+	end
+	for i, account in ipairs(accounts) do
+		if account.server and account.server ~= "" then
+			names[i] = account.username .. " @ " .. account.server
+		else
+			names[i] = account.username
+		end
+	end
+	return table.concat(names, ",")
+end
+
 local function get_formspec(tabview, name, tabdata_etc)
 	-- Update the cached supported proto info,
 	-- it may have changed after a change by the settings menu.
@@ -112,6 +128,12 @@ local function get_formspec(tabview, name, tabdata_etc)
 
 	local profile_names = get_profile_names()
 	local dropdown_options = table.concat(profile_names, ",")
+	local accounts = account_manager and account_manager.get_accounts and account_manager.get_accounts() or {}
+	local selected_account_index = account_manager and account_manager.get_selected_index and
+		(account_manager.get_selected_index() or 1) or 1
+	if #accounts == 0 then
+		selected_account_index = 1
+	end
 
 	local selected_index = tonumber(core.settings:get("selected_profile"))
 	local announce_join = tostring(core.settings:get_bool("announce_join"))
@@ -121,7 +143,7 @@ local function get_formspec(tabview, name, tabdata_etc)
 		"button[0.25,8.4;4.25,0.8;back;" .. fgettext("Back") .. "]" ..
 		
 		-- announce join checkbox
-		--"checkbox[0.25,7.43;announce_join;Show other CloakV4 users you joined;" .. announce_join .. "]" .. 
+		--"checkbox[0.25,7.43;announce_join;Show other Lunarchy users you joined;" .. announce_join .. "]" .. 
 		--"tooltip[announce_join;Tell the TeamAcedia server you connected, only works when signed in.]" ..
 
 		-- Personality profile selector
@@ -155,12 +177,12 @@ local function get_formspec(tabview, name, tabdata_etc)
 		"label[0.2,1.4;" .. fgettext("Server Description") .. "]" ..
 		"box[0.25,2.1;7.15,4.7;#999999]"..
 
-		-- Name / Password
-		"container[0,7.25]" ..
-		"label[0.25,0;" .. fgettext("Name") .. ":]" ..
-		"label[3.7,0;" .. fgettext("Password") .. ":]" ..
-		"field[1.4,0.22;2.625,0.75;te_name;;" .. core.formspec_escape(core.settings:get("name")) .. "]" ..
-		"pwdfield[5.265,0.22;2.625,0.75;te_pwd;]" ..
+		-- Account selector
+		"container[0,7.18]" ..
+		"label[0.25,0.15;" .. fgettext("Account") .. ":]" ..
+		"container[1.55,0.02]" ..
+		"dropdown[0,0;5.15,0.8;account_list;" .. account_list_text() .. ";" .. selected_account_index .. ";true]" ..
+		"container_end[]" ..
 		"container_end[]" ..
 
 		-- Connect
@@ -504,9 +526,11 @@ local function main_button_handler(tabview, fields, name, tabdata_etc)
 		end
 	end
 
-	if fields.te_name then
-		gamedata.playername = fields.te_name
-		core.settings:set("name", fields.te_name)
+	if fields.account_list then
+		local selected = tonumber(fields.account_list)
+		if selected and account_manager and account_manager.select_index then
+			account_manager.select_index(selected)
+		end
 	end
 
 	if fields.servers then
@@ -522,12 +546,12 @@ local function main_button_handler(tabview, fields, name, tabdata_etc)
 
 				gamedata.address    = server.address
 				gamedata.port       = server.port
-				gamedata.playername = fields.te_name
+				gamedata.playername = (account_manager and account_manager.get_selected_account and
+					(account_manager.get_selected_account() and account_manager.get_selected_account().username or "")) or ""
 				gamedata.selected_world = 0
 
-				if fields.te_pwd then
-					gamedata.password = fields.te_pwd
-				end
+				local selected_account = account_manager and account_manager.get_selected_account and account_manager.get_selected_account()
+				gamedata.password = selected_account and selected_account.password or ""
 
 				gamedata.servername        = server.name
 				gamedata.serverdescription = server.description
@@ -611,8 +635,23 @@ local function main_button_handler(tabview, fields, name, tabdata_etc)
 	local te_port_number = tonumber(fields.te_port)
 
 	if (fields.btn_mp_login or fields.key_enter) and host_filled then
-		gamedata.playername = fields.te_name
-		gamedata.password   = fields.te_pwd
+		core.settings:set("mainmenu_last_page", "online")
+		local selected_account = account_manager and account_manager.get_selected_account and account_manager.get_selected_account()
+		if not selected_account then
+			gamedata.errormessage = fgettext("Select an account first.")
+			return true
+		end
+		if not selected_account.password or selected_account.password == "" then
+			gamedata.errormessage = fgettext("Password is required.")
+			return true
+		end
+		local server_key = tostring(fields.te_address or "") .. ":" .. tostring(te_port_number or "")
+		if selected_account.server and selected_account.server ~= "" and selected_account.server ~= server_key then
+			gamedata.errormessage = fgettext("Access denied. Reason: Incorrect server for the account")
+			return true
+		end
+		gamedata.playername = selected_account.username or ""
+		gamedata.password   = selected_account.password
 		gamedata.address    = fields.te_address
 		gamedata.port       = te_port_number
 
@@ -653,6 +692,7 @@ local function main_button_handler(tabview, fields, name, tabdata_etc)
 	end
 
 	if fields.btn_mp_register and host_filled then
+		core.settings:set("mainmenu_last_page", "online")
 		local idx = core.get_table_index("servers")
 		local server = idx and tabdata.lookup[idx]
 		if server and (server.address ~= fields.te_address or server.port ~= te_port_number) then
@@ -664,12 +704,13 @@ local function main_button_handler(tabview, fields, name, tabdata_etc)
 			return true
 		end
 
-		local dlg = create_register_dialog(fields.te_address, te_port_number, server)
-		dlg:set_parent(dlgview)
-		tabview:hide()
-		dlg:show()
-		return true
-	end
+			local dlg = create_register_dialog(fields.te_address, te_port_number, server)
+			dlg:set_parent(tabview)
+			tabview:hide()
+			dlg:show()
+			ui.update()
+			return true
+		end
 
 	if fields.announce_join then
 		core.settings:set("announce_join", fields.announce_join)
@@ -688,6 +729,7 @@ end
 function create_online_dlg()
 	mm_game_theme.set_engine()
 	serverlistmgr.sync()
+	core.settings:set("mainmenu_last_page", "online")
 	local retval = dialog_create("online",
 					get_formspec,
 					main_button_handler,

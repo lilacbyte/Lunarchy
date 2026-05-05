@@ -6,6 +6,7 @@ local function get_formspec(dialogdata)
 		"formspec_version[6]",
 		"size[5,6]",
 		"bgcolor[;neither;]",
+		"box[0,0;5,6;#1f2328]",
 		
         "image[0,0;5,1;" .. core.formspec_escape(defaulttexturedir .. "menu_header.png") .. "]",
 
@@ -73,13 +74,13 @@ end
 
 function show_sign_in_screen()
 	local username = cache_settings:get(LOGIN_USERNAME_SETTING_NAME)
-	local hashed_pw = cache_settings:get(LOGIN_PASSWORD_SETTING_NAME)
+	local password = cache_settings:get(LOGIN_PASSWORD_SETTING_NAME)
 	if username == "Guest" then
 		core.settings:set(SESSION_TOKEN_SETTING_NAME, "")
 		return
 	end
-	if username and username ~= "" and hashed_pw and hashed_pw ~= "" then
-		if not verify_login_credentials(username, hashed_pw) then
+	if username and username ~= "" and password and password ~= "" then
+		if not verify_login_credentials(username, password) then
 			local mainmenu = ui.find_by_name("mainmenu")
 			local dlg = create_sign_in_dialog()
 			dlg:set_parent(mainmenu)

@@ -3482,6 +3482,8 @@ void GUIFormSpecMenu::drawMenu()
 	skin->setFont(m_font);
 
 	m_hovered_item_tooltips.clear();
+	m_hovered_item_preview.reset();
+	m_hovered_item_preview_texture.reset();
 
 	updateSelectedItem();
 
@@ -3616,7 +3618,88 @@ void GUIFormSpecMenu::drawMenu()
 			cursor_control->setActiveIcon(ECI_NORMAL);
 	}
 
-	m_tooltip_element->draw();
+	const bool has_preview = m_hovered_item_preview && !m_hovered_item_preview->empty();
+	const bool has_texture_preview = m_hovered_item_preview_texture && !m_hovered_item_preview_texture->empty();
+	m_tooltip_element->setDrawBackground(!has_preview);
+	m_tooltip_element->setDrawBorder(!has_preview);
+
+	if (!has_preview && !has_texture_preview) {
+		m_tooltip_element->draw();
+	} else {
+		const core::rect<s32> tooltip_rect = m_tooltip_element->getAbsolutePosition();
+		const core::rect<s32> screen_clip(0, 0, screenSize.X, screenSize.Y);
+		const s32 slot_size = std::max<s32>(24, m_btn_height + 4);
+		const s32 slot_gap = 3;
+		const s32 padding = 8;
+		const s32 cols = 9;
+		const s32 rows = 3;
+		const s32 grid_width = padding * 2 + cols * slot_size + (cols - 1) * slot_gap;
+		const s32 grid_height = padding * 2 + rows * slot_size + (rows - 1) * slot_gap;
+		const s32 texture_size = std::max<s32>(slot_size * 5, 160);
+		const s32 texture_panel_width = padding * 2 + texture_size;
+		const s32 texture_panel_height = padding * 2 + texture_size;
+		const s32 panel_width = has_preview ? grid_width : texture_panel_width;
+		const s32 panel_height = has_preview ? grid_height : texture_panel_height;
+
+		v2s32 pos(tooltip_rect.UpperLeftCorner.X, tooltip_rect.LowerRightCorner.Y + 2);
+		if (pos.X + panel_width > (s32)screenSize.X)
+			pos.X = (s32)screenSize.X - panel_width - m_btn_height;
+		if (pos.Y + panel_height > (s32)screenSize.Y)
+			pos.Y = tooltip_rect.UpperLeftCorner.Y - panel_height - 2;
+		if (pos.X < 8)
+			pos.X = 8;
+		if (pos.Y < 8)
+			pos.Y = 8;
+
+		core::rect<s32> preview_rect(pos, v2s32(pos.X + panel_width, pos.Y + panel_height));
+		core::rect<s32> panel_rect = tooltip_rect;
+		panel_rect.addInternalPoint(preview_rect.UpperLeftCorner);
+		panel_rect.addInternalPoint(preview_rect.LowerRightCorner);
+
+		driver->draw2DRectangle(video::SColor(190, 0, 0, 0), panel_rect, &screen_clip);
+		driver->draw2DRectangle(video::SColor(255, 70, 70, 70),
+			core::rect<s32>(panel_rect.UpperLeftCorner,
+				v2s32(panel_rect.LowerRightCorner.X, panel_rect.UpperLeftCorner.Y + 1)),
+			&screen_clip);
+
+		m_tooltip_element->draw();
+
+		if (has_preview) {
+			const std::vector<ItemStack> &contents = *m_hovered_item_preview;
+			for (size_t i = 0; i < contents.size() && i < cols * rows; ++i) {
+				const size_t row = i / cols;
+				const size_t col = i % cols;
+				const s32 x = pos.X + padding + static_cast<s32>(col) * (slot_size + slot_gap);
+				const s32 y = pos.Y + padding + static_cast<s32>(row) * (slot_size + slot_gap);
+				core::rect<s32> slot_rect(x, y, x + slot_size, y + slot_size);
+
+				driver->draw2DRectangle(video::SColor(180, 38, 38, 38), slot_rect, &screen_clip);
+				driver->draw2DRectangle(video::SColor(255, 110, 110, 110),
+					core::rect<s32>(slot_rect.UpperLeftCorner,
+						v2s32(slot_rect.LowerRightCorner.X, slot_rect.UpperLeftCorner.Y + 1)),
+					&screen_clip);
+				driver->draw2DRectangle(video::SColor(255, 110, 110, 110),
+					core::rect<s32>(slot_rect.UpperLeftCorner,
+						v2s32(slot_rect.UpperLeftCorner.X + 1, slot_rect.LowerRightCorner.Y)),
+					&screen_clip);
+
+				if (!contents[i].empty())
+					drawItemStack(driver, m_font, contents[i], slot_rect, &screen_clip, m_client, IT_ROT_NONE);
+			}
+		} else if (m_hovered_item_preview_texture && !m_hovered_item_preview_texture->empty()) {
+			const s32 x = pos.X + padding;
+			const s32 y = pos.Y + padding;
+			core::rect<s32> image_rect(x, y, x + texture_size, y + texture_size);
+			video::ITexture *texture = m_client->getTextureSource()->getTextureForMesh(*m_hovered_item_preview_texture);
+			if (texture) {
+				driver->draw2DRectangle(video::SColor(200, 38, 38, 38), image_rect, &screen_clip);
+				draw2DImageFilterScaled(driver, texture, image_rect,
+					core::rect<s32>(0, 0, texture->getOriginalSize().Width, texture->getOriginalSize().Height),
+					&screen_clip, nullptr, true);
+				driver->draw2DRectangleOutline(image_rect, video::SColor(255, 110, 110, 110));
+			}
+		}
+	}
 
 	/*
 		Draw dragged item stack
@@ -4190,9 +4273,9 @@ bool GUIFormSpecMenu::OnEvent(const SEvent& event)
 			matching = a.stacksWith(b);
 		}
 
+		bool mouse_shift = false;
 		ButtonEventType button = BET_OTHER;
 		ButtonEventType updown = BET_OTHER;
-		bool mouse_shift = false;
 		if (event.EventType == EET_MOUSE_INPUT_EVENT) {
 			mouse_shift = event.MouseInput.Shift;
 			switch (event.MouseInput.Event) {

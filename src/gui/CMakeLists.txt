@@ -28,9 +28,14 @@ set(gui_SRCS
 	${CMAKE_CURRENT_SOURCE_DIR}/touchcontrols.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/touchscreenlayout.cpp
 	${CMAKE_CURRENT_SOURCE_DIR}/touchscreeneditor.cpp
-	${CMAKE_CURRENT_SOURCE_DIR}/drawItemStack.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/drawItemStack.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/NewMenu.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/cheatHUD.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/targetHUD.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/coordsHUD.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/clientsHUD.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/pingHUD.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/welcomeHUD.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/equipmentHUD.cpp
 	PARENT_SCOPE
 )

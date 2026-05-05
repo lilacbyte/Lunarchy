@@ -12,6 +12,25 @@
 #include "log_internal.h"
 #include "client/renderingengine.h"
 
+namespace {
+
+bool is_invmove_key(GameKeyType action)
+{
+	switch (action) {
+	case KeyType::FORWARD:
+	case KeyType::BACKWARD:
+	case KeyType::LEFT:
+	case KeyType::RIGHT:
+	case KeyType::JUMP:
+	case KeyType::SNEAK:
+		return true;
+	default:
+		return false;
+	}
+}
+
+} // namespace
+
 void MyEventReceiver::reloadKeybindings()
 {
 	clearKeyCache();
@@ -69,11 +88,12 @@ void MyEventReceiver::reloadKeybindings()
 	keybindings[KeyType::RANGESELECT] = getKeySetting("keymap_rangeselect");
 	keybindings[KeyType::ZOOM] = getKeySetting("keymap_zoom");
 	keybindings[KeyType::FREECAM] = getKeySetting("keymap_toggle_freecam");
+	keybindings[KeyType::CRYSTALSPAM] = getKeySetting("keymap_toggle_crystalspam");
+	keybindings[KeyType::AUTOWITHER] = getKeySetting("keymap_toggle_autowither");
 	keybindings[KeyType::KILLAURA] = getKeySetting("keymap_toggle_killaura");
 	keybindings[KeyType::AUTOAIM] = getKeySetting("keymap_toggle_autoaim");
 	keybindings[KeyType::SCAFFOLD] = getKeySetting("keymap_toggle_scaffold");
-    keybindings[KeyType::BLINK] = getKeySetting("keymap_toggle_blink");
-    keybindings[KeyType::DETACHEDCAMERA] = getKeySetting("keymap_toggle_detached_camera");
+	keybindings[KeyType::BLINK] = getKeySetting("keymap_toggle_blink");
 	keybindings[KeyType::QUICKTUNE_NEXT] = getKeySetting("keymap_quicktune_next");
 	keybindings[KeyType::QUICKTUNE_PREV] = getKeySetting("keymap_quicktune_prev");
 	keybindings[KeyType::QUICKTUNE_INC] = getKeySetting("keymap_quicktune_inc");
@@ -168,6 +188,17 @@ bool MyEventReceiver::OnEvent(const SEvent &event)
 		last_pointer_type = PointerType::Mouse;
 	else if (event.EventType == EET_TOUCH_INPUT_EVENT)
 		last_pointer_type = PointerType::Touch;
+
+	const bool invmove_enabled = g_settings->getBool("invmove");
+
+	if (invmove_enabled && isMenuActive() && event.EventType == irr::EET_KEY_INPUT_EVENT) {
+		KeyPress keyCode(event.KeyInput);
+		auto found = keysListenedFor.find(keyCode);
+		if (found != keysListenedFor.end() && is_invmove_key(found->second)) {
+			setKeyDown(keyCode, event.KeyInput.PressedDown);
+			return true;
+		}
+	}
 
 	// Let the menu handle events, if one is active.
 	if (isMenuActive()) {

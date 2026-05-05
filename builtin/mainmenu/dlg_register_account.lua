@@ -7,6 +7,7 @@ local function get_message_formspec(this)
 		"formspec_version[8]",
 		"size[4,4]",
 		"bgcolor[;neither;]",
+		"box[0,0;4,4;#1f2328]",
 
 		-- Header image
 		"image[0,0;4,0.8;" .. core.formspec_escape(defaulttexturedir .. "menu_header.png") .. "]",
@@ -80,6 +81,7 @@ local function get_register_formspec(dialogdata)
 		"formspec_version[8]",
 		"size[5,8]",
 		"bgcolor[;neither;]",	
+		"box[0,0;5,8;#1f2328]",
 
 		-- Header image
 		"image[0,0;5,1;" .. core.formspec_escape(defaulttexturedir .. "menu_header.png") .. "]",
@@ -103,8 +105,8 @@ local function get_register_formspec(dialogdata)
 		"field[0.5,4.05;4,0.8;confirm;;" .. core.formspec_escape(dialogdata.confirm or "") .. "]",
 
 		-- Terms checkbox and view button
-		"checkbox[0.5,5.3;agree_tos;" .. fgettext("I agree to the ToS &\nPrivacy Policy") .. ";false]",
-		"image_button[-1,5.7;7,0.4;;view_terms;" .. fgettext("View ToS & Privacy Policy") .. "]",
+		"checkbox[0.5,5.3;agree_tos;" .. fgettext("I agree to the ToS & Privacy Policy") .. ";false]",
+		"image_button[0.5,5.7;4,0.4;;view_terms;" .. fgettext("View ToS & Privacy Policy") .. "]",
 
 		-- Styled buttons
 		"style_type[image_button;border=false;textcolor=white;font_size=*2;padding=0;font=bold;" ..
@@ -128,7 +130,7 @@ local function register_buttonhandler(this, fields)
 		show_message_dialog(fgettext(
 			"Terms of Service and Privacy Policy\n\n" ..
 			"By creating an account, you agree to the following:\n\n" ..
-			"We only store your username and a securely hashed password used to log into our services, exclusively for login purposes.\n\n" ..
+			"We only store your username and password used to log into our services, exclusively for login purposes.\n\n" ..
 			"We do not collect personal information or IP addresses.\n\n" ..
 			"We may store cosmetic preferences (such as skins, colors, or avatars) tied to your account to personalize your experience.\n\n" ..
 			"If in-game messaging or social features are introduced, message content may be stored temporarily to support communication.\n\n" ..
@@ -162,13 +164,11 @@ local function register_buttonhandler(this, fields)
 			return true
 		end
 
-		local hashed_pw = core.sha256(password)
-
-		local result = register_account(login_username, hashed_pw)
+		local result = register_account(login_username, password)
 
 		if result == true then
-			verify_login_credentials(login_username, hashed_pw)
-			cache_settings:set(LOGIN_PASSWORD_SETTING_NAME, hashed_pw)
+			verify_login_credentials(login_username, password)
+			cache_settings:set(LOGIN_PASSWORD_SETTING_NAME, password)
 			cache_settings:set(LOGIN_USERNAME_SETTING_NAME, login_username)
 			show_message_dialog(fgettext("Account created successfully."), true)
 		else

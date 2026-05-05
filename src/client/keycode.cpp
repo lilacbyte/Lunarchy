@@ -228,6 +228,36 @@ static const table_key invalid_key = {"", irr::KEY_UNKNOWN, L'\0', ""};
 
 #undef N_
 
+static std::string normalize_legacy_keycode(const std::string &keysym)
+{
+#if USE_SDL2
+	static const std::pair<const char *, const char *> legacy_map[] = {
+		{"KEY_KEY_G", "SYSTEM_SCANCODE_10"},
+		{"KEY_KEY_C", "SYSTEM_SCANCODE_6"},
+		{"KEY_KEY_X", "SYSTEM_SCANCODE_27"},
+		{"KEY_KEY_N", "SYSTEM_SCANCODE_17"},
+		{"KEY_KEY_Y", "SYSTEM_SCANCODE_29"},
+		{"KEY_KEY_B", "SYSTEM_SCANCODE_5"},
+		{"KEY_F2", "SYSTEM_SCANCODE_59"},
+		{"KEY_F8", "SYSTEM_SCANCODE_65"},
+		{"KEY_UP", "SYSTEM_SCANCODE_82"},
+		{"KEY_DOWN", "SYSTEM_SCANCODE_81"},
+		{"KEY_LEFT", "SYSTEM_SCANCODE_80"},
+		{"KEY_RIGHT", "SYSTEM_SCANCODE_79"},
+		{"KEY_PLUS", "SYSTEM_SCANCODE_46"},
+		{"KEY_MINUS", "SYSTEM_SCANCODE_45"},
+		{"KEY_PERIOD", "SYSTEM_SCANCODE_55"},
+		{"KEY_RSHIFT", "SYSTEM_SCANCODE_229"},
+	};
+
+	for (const auto &legacy : legacy_map) {
+		if (keysym == legacy.first)
+			return legacy.second;
+	}
+#endif
+	return keysym;
+}
+
 
 static const table_key &lookup_keychar(wchar_t Char)
 {
@@ -389,8 +419,12 @@ KeyPress getKeySetting(const std::string &settingname)
 		return n->second;
 
 	auto keysym = g_settings->get(settingname);
+	const auto normalized = normalize_legacy_keycode(keysym);
 	auto &ref = g_key_setting_cache[settingname];
 	ref = KeyPress(keysym);
+	if (!ref && normalized != keysym) {
+		ref = KeyPress(normalized);
+	}
 	if (!keysym.empty() && !ref) {
 		warningstream << "Invalid key '" << keysym << "' for '" << settingname << "'." << std::endl;
 	}

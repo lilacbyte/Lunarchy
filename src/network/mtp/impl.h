@@ -263,11 +263,7 @@ protected:
 
 	void sendAck(session_t peer_id, u8 channelnum, u16 seqnum);
 
-	std::vector<session_t> getPeerIDs()
-	{
-		MutexAutoLock peerlock(m_peers_mutex);
-		return m_peer_ids;
-	}
+	std::vector<session_t> getPeerIDs();
 
 	u32 getActiveCount();
 

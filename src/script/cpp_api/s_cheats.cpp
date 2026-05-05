@@ -22,25 +22,36 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include "cpp_api/s_internal.h"
 #include "settings.h"
 #include "log.h"
+#include <algorithm>
 #include <iostream>
 #include "s_cheats.h"
 
 ScriptApiCheatsCheat::ScriptApiCheatsCheat(
 		const std::string &name, const std::string &setting, const std::string &info_text = "") :
 		m_name(name),
-		m_setting(setting), m_function_ref(0),
-		m_info_text(info_text)
+		m_info_text(info_text),
+		m_description(),
+		m_order(0),
+		m_cheat_settings(),
+		m_setting(setting),
+		m_function_ref(0)
 {
 }
 
 ScriptApiCheatsCheat::ScriptApiCheatsCheat(const std::string &name, const int &function, const std::string &info_text = "") :
-		m_name(name), m_setting(""), m_function_ref(function)
+		m_name(name),
+		m_info_text(info_text),
+		m_description(),
+		m_order(0),
+		m_cheat_settings(),
+		m_setting(""),
+		m_function_ref(function)
 {
 }
 
 ScriptApiCheatsCheat::~ScriptApiCheatsCheat()
 {
-	for (int i = 0; i < m_cheat_settings.size(); i++) 
+	for (size_t i = 0; i < m_cheat_settings.size(); ++i)
 		delete m_cheat_settings[i];
 }
 
@@ -81,36 +92,53 @@ ScriptApiCheatsCategory::ScriptApiCheatsCategory(const std::string &name) : m_na
 
 ScriptApiCheatsCategory::~ScriptApiCheatsCategory()
 {
-	for (int i = 0; i < m_cheats.size(); i++) 
+	for (size_t i = 0; i < m_cheats.size(); ++i)
 		delete m_cheats[i];
 }
 
 void ScriptApiCheatsCategory::read_cheats(lua_State *L)
 {
-	std::vector<std::pair<std::string, ScriptApiCheatsCheat*>> cheat_pairs;
+	std::vector<ScriptApiCheatsCheat *> cheat_pairs;
 
 	lua_pushnil(L);
 	while (lua_next(L, -2)) {
 		ScriptApiCheatsCheat *cheat = nullptr;
 		std::string name = lua_tostring(L, -2);
-		if (lua_isstring(L, -1))
+		if (lua_isstring(L, -1)) {
 			cheat = new ScriptApiCheatsCheat(name, lua_tostring(L, -1));
-		else if (lua_isfunction(L, -1)) {
+		} else if (lua_isfunction(L, -1)) {
 			cheat = new ScriptApiCheatsCheat(
 					name, luaL_ref(L, LUA_REGISTRYINDEX));
 			lua_pushnil(L);
+		} else if (lua_istable(L, -1)) {
+			lua_getfield(L, -1, "setting");
+			if (lua_isstring(L, -1)) {
+				cheat = new ScriptApiCheatsCheat(name, lua_tostring(L, -1));
+			}
+			lua_pop(L, 1);
+			if (cheat) {
+				lua_getfield(L, -1, "order");
+				if (lua_isnumber(L, -1))
+					cheat->m_order = lua_tonumber(L, -1);
+				lua_pop(L, 1);
+			}
 		}
 		if (cheat)
-			cheat_pairs.emplace_back(name, cheat);
+			cheat_pairs.push_back(cheat);
 		lua_pop(L, 1);
 	}
 
 	// Sorting cheats
-	std::sort(cheat_pairs.begin(), cheat_pairs.end());
+	std::stable_sort(cheat_pairs.begin(), cheat_pairs.end(),
+		[](const ScriptApiCheatsCheat *a, const ScriptApiCheatsCheat *b) {
+			if (a->m_order != b->m_order)
+				return a->m_order < b->m_order;
+			return a->m_name < b->m_name;
+		});
 
 	// Assigning sorted cheats to m_cheats
-	for (const auto &pair : cheat_pairs) {
-		m_cheats.push_back(pair.second);
+	for (auto *cheat : cheat_pairs) {
+		m_cheats.push_back(cheat);
 	}
 }
 
@@ -269,6 +297,12 @@ void ScriptApiCheats::init_cheat_settings()
 									}
 									lua_pop(L, 1); // Pop 'size'
 
+									lua_getfield(L, -1, "order");  // get 'order'
+									if (lua_isnumber(L, -1)) {
+										cheat_setting->m_order = lua_tonumber(L, -1);
+									}
+									lua_pop(L, 1); // Pop 'order'
+
 									lua_getfield(L, -1, "options");  // get 'options'
 									if (lua_istable(L, -1)) {
 										lua_pushnil(L);
@@ -295,6 +329,21 @@ void ScriptApiCheats::init_cheat_settings()
             lua_pop(L, 1); // Pop category table
         }
     }
+
+	for (auto *category : m_cheat_categories) {
+		if (!category)
+			continue;
+		for (auto *cheat : category->m_cheats) {
+			if (!cheat)
+				continue;
+			std::stable_sort(cheat->m_cheat_settings.begin(), cheat->m_cheat_settings.end(),
+				[](const ScriptApiCheatsCheatSetting *a, const ScriptApiCheatsCheatSetting *b) {
+					if (a->m_order != b->m_order)
+						return a->m_order < b->m_order;
+					return a->m_name < b->m_name;
+				});
+		}
+	}
 
     lua_pop(L, 2); // Pop 'core.cheat_settings' and 'core'
 }
@@ -349,6 +398,7 @@ void ScriptApiCheats::toggle_cheat(ScriptApiCheatsCheat *cheat)
 	lua_insert(L, error_handler);
 
 	cheat->toggle(L, error_handler);
+	++m_cheat_state_revision;
 }
 
 ScriptApiCheatsCategory* ScriptApiCheats::get_category(const std::string &name) {
@@ -361,7 +411,15 @@ ScriptApiCheatsCategory* ScriptApiCheats::get_category(const std::string &name) 
 
 ScriptApiCheatsCheatSetting::ScriptApiCheatsCheatSetting(const std::string &name, const std::string &setting) : 
 	m_name(name),
-	m_setting(setting)
+	m_type(),
+	m_parent(),
+	m_setting(setting),
+	m_min(0.0),
+	m_max(0.0),
+	m_steps(0.0),
+	m_size(0.0),
+	m_order(0.0),
+	m_options()
 {
 }
 

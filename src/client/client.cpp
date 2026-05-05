@@ -44,6 +44,7 @@
 #include "clientmap.h"
 #include "clientmedia.h"
 #include "version.h"
+#include "filesys.h"
 #include "database/database-files.h"
 #include "database/database-sqlite3.h"
 #include "serialization.h"

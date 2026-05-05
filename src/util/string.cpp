@@ -556,15 +556,78 @@ static bool parseNamedColorString(const std::string &value, video::SColor &color
 	return true;
 }
 
+static std::optional<video::SColor> parseVectorColorString(std::string_view value,
+		unsigned char default_alpha)
+{
+	value = trim(value);
+	if (value.empty())
+		return std::nullopt;
+
+	// Accept the repo's common "(r, g, b)" / "r, g, b" syntax, and optionally
+	// a fourth component for alpha.
+	if (value.front() == '(' && value.back() == ')') {
+		value.remove_prefix(1);
+		value.remove_suffix(1);
+		value = trim(value);
+	}
+
+	std::istringstream iss{std::string(value)};
+	const auto expect_delimiter = [&]() {
+		const auto c = iss.get();
+		return c == ' ' || c == ',';
+	};
+
+	float red = 0.0f;
+	float green = 0.0f;
+	float blue = 0.0f;
+	float alpha = static_cast<float>(default_alpha);
+
+	if (!(iss >> red))
+		return std::nullopt;
+	if (!expect_delimiter())
+		return std::nullopt;
+	if (!(iss >> green))
+		return std::nullopt;
+	if (!expect_delimiter())
+		return std::nullopt;
+	if (!(iss >> blue))
+		return std::nullopt;
+
+	if (!iss.eof()) {
+		if (!expect_delimiter())
+			return std::nullopt;
+		if (!(iss >> alpha))
+			return std::nullopt;
+		if (!iss.eof())
+			return std::nullopt;
+	}
+
+	return video::SColor(
+		static_cast<u8>(std::clamp(alpha, 0.0f, 255.0f)),
+		static_cast<u8>(std::clamp(red, 0.0f, 255.0f)),
+		static_cast<u8>(std::clamp(green, 0.0f, 255.0f)),
+		static_cast<u8>(std::clamp(blue, 0.0f, 255.0f)));
+}
+
 bool parseColorString(const std::string &value, video::SColor &color, bool quiet,
 		unsigned char default_alpha)
 {
 	bool success;
 
-	if (value[0] == '#')
+	if (value.empty()) {
+		success = false;
+	} else if (value[0] == '#') {
 		success = parseHexColorString(value, color, default_alpha);
-	else
+	} else {
 		success = parseNamedColorString(value, color);
+		if (!success) {
+			std::optional<video::SColor> vector_color = parseVectorColorString(value, default_alpha);
+			if (vector_color) {
+				color = *vector_color;
+				success = true;
+			}
+		}
+	}
 
 	if (!success && !quiet)
 		errorstream << "Invalid color: \"" << value << "\"" << std::endl;

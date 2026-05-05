@@ -256,6 +256,18 @@ public:
 		m_hovered_item_tooltips.emplace_back(name);
 	}
 
+	void setHoveredItemPreview(const std::vector<ItemStack> &items)
+	{
+		m_hovered_item_preview_texture.reset();
+		m_hovered_item_preview = items;
+	}
+
+	void setHoveredItemPreviewTexture(const std::string &texture)
+	{
+		m_hovered_item_preview.reset();
+		m_hovered_item_preview_texture = texture;
+	}
+
 	/*
 		Remove and re-add (or reposition) stuff
 	*/
@@ -432,6 +444,8 @@ private:
 	fs_key_pending current_keys_pending;
 	std::string current_field_enter_pending = "";
 	std::vector<std::string> m_hovered_item_tooltips;
+	std::optional<std::vector<ItemStack>> m_hovered_item_preview;
+	std::optional<std::string> m_hovered_item_preview_texture;
 
 	void removeAll();
 
@@ -506,7 +520,6 @@ private:
 
 	int m_btn_height;
 	gui::IGUIFont *m_font = nullptr;
-
 	// used by getAbsoluteRect
 	s32 m_tabheader_upper_edge = 0;
 

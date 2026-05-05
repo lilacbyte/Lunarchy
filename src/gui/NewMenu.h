@@ -1,5 +1,5 @@
 /*
-Cloak V4
+Lunarchy
 Copyright (C) 2025 Maintainer_(Ivan Shkatov) <ivanskatov672@gmail.com>
 Copyright (C) 2025 Prounce <prouncedev@gmail.com>
 This program is free software; you can redistribute it and/or modify
@@ -34,6 +34,11 @@ with this program; if not, write to the Free Software Foundation, Inc.,
 #include <chrono>
 #include "gui/targetHUD.h"
 #include "gui/coordsHUD.h"
+#include "gui/clientsHUD.h"
+#include "gui/pingHUD.h"
+#include "gui/welcomeHUD.h"
+#include "gui/cheatHUD.h"
+#include "gui/equipmentHUD.h"
 #include "client/color_theme.h"
 
 using namespace irr;
@@ -78,8 +83,15 @@ private:
     void drawCategory(video::IVideoDriver* driver, gui::IGUIFont* font, const size_t category_index, float dtime);
     void drawSelectionBox(video::IVideoDriver* driver, gui::IGUIFont* font, const size_t i, const size_t c, const size_t s);
     void drawEditHudButton(video::IVideoDriver* driver, gui::IGUIFont* font);
+    void syncTextFieldStates();
+    void drawColorPicker(video::IVideoDriver* driver, gui::IGUIFont* font, size_t category_index, size_t cheat_index, size_t setting_index);
+    bool handleColorPickerEvent(const irr::SEvent& event);
+    void commitColorSetting(size_t category_index, size_t cheat_index, size_t setting_index, const video::SColor &color);
+    core::position2d<s32> colorPickerAnchor;
+    bool colorPickerAnchorValid = false;
 
     void setColorsFromTheme(const ColorTheme theme);
+    void applyAppearanceOverrides();
     void setWidthFromMultiplier(const s32 multiplier);
     void adjustCategoryPositions();
     
@@ -98,6 +110,8 @@ private:
     bool isEditingHovered = false;
     bool isSliding = false;
     bool isSelecting = false;
+    bool isColorSelecting = false;
+    bool ignoreColorPickerMouseUp = false;
     bool isResizingHUDElement = false;
     size_t resizingHUDElementIndex = 0;
     core::vector2d<s32> resizingHUDElementOffset;
@@ -119,6 +133,9 @@ private:
     int selectingCategoryIndex = 0;
     int selectingCheatIndex = 0;
     int selectingSettingIndex = 0;
+    int selectingColorCategoryIndex = 0;
+    int selectingColorCheatIndex = 0;
+    int selectingColorSettingIndex = 0;
     std::vector<bool> selectedCategory;
     std::vector<std::vector<bool>> selectedCheat;
     std::vector<bool> dropdownHovered;

@@ -14,6 +14,8 @@ local basepath = core.get_builtin_path()
 defaulttexturedir = core.get_texturepath_share() .. DIR_DELIM .. "base" ..
 					DIR_DELIM .. "pack" .. DIR_DELIM
 
+login_username = login_username or ""
+
 dofile(basepath .. "common" .. DIR_DELIM .. "menu.lua")
 dofile(basepath .. "common" .. DIR_DELIM .. "filterlist.lua")
 dofile(basepath .. "fstk" .. DIR_DELIM .. "buttonbar.lua")
@@ -24,9 +26,9 @@ dofile(menupath .. DIR_DELIM .. "async_event.lua")
 dofile(menupath .. DIR_DELIM .. "common.lua")
 dofile(menupath .. DIR_DELIM .. "serverlistmgr.lua")
 dofile(menupath .. DIR_DELIM .. "game_theme.lua")
+dofile(menupath .. DIR_DELIM .. "account_manager.lua")
 dofile(menupath .. DIR_DELIM .. "content" .. DIR_DELIM .. "init.lua")
 
-dofile(menupath .. DIR_DELIM .. "networking.lua")
 dofile(menupath .. DIR_DELIM .. "personality_profiles.lua")
 dofile(menupath .. DIR_DELIM .. "dlg_config_world.lua")
 dofile(basepath .. "common" .. DIR_DELIM .. "settings" .. DIR_DELIM .. "init.lua")
@@ -39,16 +41,13 @@ dofile(menupath .. DIR_DELIM .. "dlg_version_info.lua")
 dofile(menupath .. DIR_DELIM .. "dlg_reinstall_mtg.lua")
 dofile(menupath .. DIR_DELIM .. "dlg_rebind_keys.lua")
 dofile(menupath .. DIR_DELIM .. "dlg_clients_list.lua")
+dofile(menupath .. DIR_DELIM .. "dlg_account_manager.lua")
 dofile(menupath .. DIR_DELIM .. "dlg_server_list_mods.lua")
 dofile(menupath .. DIR_DELIM .. "dlg_local.lua")
 dofile(menupath .. DIR_DELIM .. "dlg_online.lua")
 dofile(menupath .. DIR_DELIM .. "dlg_content.lua")
 dofile(menupath .. DIR_DELIM .. "dlg_csm.lua")
-dofile(menupath .. DIR_DELIM .. "dlg_cosmetics.lua")
 dofile(menupath .. DIR_DELIM .. "dlg_about.lua")
-dofile(menupath .. DIR_DELIM .. "dlg_sign_in.lua")
-dofile(menupath .. DIR_DELIM .. "dlg_login.lua")
-dofile(menupath .. DIR_DELIM .. "dlg_register_account.lua")
 dofile(menupath .. DIR_DELIM .. "mainmenu.lua")
 
 --------------------------------------------------------------------------------
@@ -94,7 +93,6 @@ local function init_globals()
 	--migrate_keybindings()
 	--check_new_version()
 	load_personality_profiles()
-	show_sign_in_screen()
 end
 
 assert(os.execute == nil)

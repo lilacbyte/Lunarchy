@@ -31,6 +31,7 @@
 #include "clientdynamicinfo.h"
 
 #include <algorithm>
+#include <iomanip>
 
 void Server::handleCommand_Deprecated(NetworkPacket* pkt)
 {
@@ -1511,11 +1512,17 @@ void Server::handleCommand_SrpBytesA(NetworkPacket* pkt)
 	session_t peer_id = pkt->getPeerId();
 	RemoteClient *client = getClient(peer_id, CS_Invalid);
 	ClientState cstate = client->getState();
+	const std::string addr_s = client->getAddress().serializeString();
+
+	verbosestream << "Server: handleCommand_SrpBytesA peer_id=" << peer_id
+		<< " state=" << cstate
+		<< " chosen_mech=" << client->chosen_mech
+		<< " size=" << pkt->getSize()
+		<< " from " << addr_s << std::endl;
 
 	if (!((cstate == CS_HelloSent) || (cstate == CS_Active))) {
 		actionstream << "Server: got SRP _A packet in wrong state " << cstate <<
-			" from " << getPeerAddress(peer_id).serializeString() <<
-			". Ignoring." << std::endl;
+			" from " << addr_s << ". Ignoring." << std::endl;
 		return;
 	}
 
@@ -1524,7 +1531,7 @@ void Server::handleCommand_SrpBytesA(NetworkPacket* pkt)
 	if (client->chosen_mech != AUTH_MECHANISM_NONE) {
 		actionstream << "Server: got SRP _A packet, while auth is already "
 			"going on with mech " << client->chosen_mech << " from " <<
-			getPeerAddress(peer_id).serializeString() <<
+			addr_s <<
 			" (wantSudo=" << wantSudo << "). Ignoring." << std::endl;
 		if (wantSudo) {
 			DenySudoAccess(peer_id);
@@ -1541,7 +1548,13 @@ void Server::handleCommand_SrpBytesA(NetworkPacket* pkt)
 
 	infostream << "Server: TOSERVER_SRP_BYTES_A received with "
 		<< "based_on=" << int(based_on) << " and len_A="
-		<< bytes_A.length() << "." << std::endl;
+		<< bytes_A.length() << " from " << addr_s << "." << std::endl;
+	verbosestream << "Server: SRP _A first bytes:";
+	for (size_t i = 0; i < bytes_A.size() && i < 16; i++) {
+		verbosestream << " " << std::hex << std::uppercase
+			<< static_cast<unsigned>(static_cast<u8>(bytes_A[i]));
+	}
+	verbosestream << std::dec << std::nouppercase << std::endl;
 
 	AuthMechanism chosen = (based_on == 0) ?
 		AUTH_MECHANISM_LEGACY_PASSWORD : AUTH_MECHANISM_SRP;
@@ -1559,7 +1572,7 @@ void Server::handleCommand_SrpBytesA(NetworkPacket* pkt)
 	} else {
 		if (!client->isMechAllowed(chosen)) {
 			actionstream << "Server: Client tried to authenticate from " <<
-				getPeerAddress(peer_id).serializeString() <<
+				addr_s <<
 				" using unallowed mech " << chosen << "." << std::endl;
 			DenyAccess(peer_id, SERVER_ACCESSDENIED_UNEXPECTED_DATA);
 			return;
@@ -1582,6 +1595,11 @@ void Server::handleCommand_SrpBytesA(NetworkPacket* pkt)
 		DenyAccess(peer_id, SERVER_ACCESSDENIED_SERVER_FAIL);
 		return;
 	}
+
+	verbosestream << "Server: SRP verifier/salt decoded for " << client->getName()
+		<< " salt_len=" << salt.size()
+		<< " verifier_len=" << verifier.size()
+		<< " based_on=" << int(based_on) << std::endl;
 
 	char *bytes_B = 0;
 	size_t len_B = 0;
@@ -1608,6 +1626,8 @@ void Server::handleCommand_SrpBytesA(NetworkPacket* pkt)
 		return;
 	}
 
+	verbosestream << "Server: SRP B generated len_B=" << len_B
+		<< " sending TOCLIENT_SRP_BYTES_S_B to " << addr_s << std::endl;
 	NetworkPacket resp_pkt(TOCLIENT_SRP_BYTES_S_B, 0, peer_id);
 	resp_pkt << salt << std::string(bytes_B, len_B);
 	Send(&resp_pkt);
@@ -1623,7 +1643,10 @@ void Server::handleCommand_SrpBytesM(NetworkPacket* pkt)
 
 	const bool wantSudo = (cstate == CS_Active);
 
-	verbosestream << "Server: Received TOSERVER_SRP_BYTES_M." << std::endl;
+	verbosestream << "Server: Received TOSERVER_SRP_BYTES_M from " << addr_s
+		<< " state=" << cstate
+		<< " chosen_mech=" << client->chosen_mech
+		<< " size=" << pkt->getSize() << std::endl;
 
 	if (!((cstate == CS_HelloSent) || (cstate == CS_Active))) {
 		warningstream << "Server: got SRP_M packet in wrong state "

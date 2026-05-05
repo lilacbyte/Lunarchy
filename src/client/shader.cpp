@@ -623,7 +623,8 @@ ShaderInfo ShaderSource::generateShader(const std::string &name,
 
 	auto *gpu = driver->getGPUProgrammingServices();
 	if (!driver->queryFeature(video::EVDF_ARB_GLSL) || !gpu) {
-		throw ShaderException(gettext("GLSL is not supported by the driver"));
+		warningstream << "GLSL is not supported by the driver, falling back to fixed pipeline rendering" << std::endl;
+		return shaderinfo;
 	}
 
 	// Create shaders header

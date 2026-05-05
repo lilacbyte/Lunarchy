@@ -108,6 +108,12 @@ SharedBuffer<u8> makeOriginalPacket(const SharedBuffer<u8> &data)
 	return b;
 }
 
+std::vector<session_t> Connection::getPeerIDs()
+{
+	MutexAutoLock peerlock(m_peers_mutex);
+	return m_peer_ids;
+}
+
 // Split data in chunks and add TYPE_SPLIT headers to them
 void makeSplitPacket(const SharedBuffer<u8> &data, u32 chunksize_max, u16 seqnum,
 		std::list<SharedBuffer<u8>> *chunks)

@@ -8,6 +8,7 @@
 #include "settings.h"
 #include "defaultsettings.h"
 #include "noise.h"
+#include "util/string.h"
 
 class TestSettings : public TestBase {
 public:
@@ -159,6 +160,23 @@ void TestSettings::testAllSettings()
 	UASSERT(s.getV3F("coord").value().X == 1.0);
 	UASSERT(s.getV3F("coord").value().Y == 2.0);
 	UASSERT(s.getV3F("coord").value().Z == 4.5);
+
+	video::SColor parsed_color;
+	UASSERT(parseColorString("#112233", parsed_color, false, 0xff));
+	UASSERT(parsed_color.getRed() == 0x11);
+	UASSERT(parsed_color.getGreen() == 0x22);
+	UASSERT(parsed_color.getBlue() == 0x33);
+	UASSERT(parsed_color.getAlpha() == 0xff);
+	UASSERT(parseColorString("(17, 34, 51)", parsed_color, false, 0xaa));
+	UASSERT(parsed_color.getRed() == 17);
+	UASSERT(parsed_color.getGreen() == 34);
+	UASSERT(parsed_color.getBlue() == 51);
+	UASSERT(parsed_color.getAlpha() == 0xaa);
+	UASSERT(parseColorString("17, 34, 51, 68", parsed_color, false, 0xff));
+	UASSERT(parsed_color.getRed() == 17);
+	UASSERT(parsed_color.getGreen() == 34);
+	UASSERT(parsed_color.getBlue() == 51);
+	UASSERT(parsed_color.getAlpha() == 68);
 
 	// Test the setting of settings too
 	s.setFloat("floaty_thing_2", 1.25);

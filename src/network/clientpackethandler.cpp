@@ -410,8 +410,6 @@ void Client::handleCommand_ActiveObjectRemoveAdd(NetworkPacket* pkt)
 		}
 	*/
 
-	LocalPlayer *player = m_env.getLocalPlayer();
-
 	try {
 		u8 type;
 		u16 removed_count, added_count, id;

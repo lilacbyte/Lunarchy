@@ -306,5 +306,4 @@ void ObjectProperties::deSerialize(std::istream &is)
 	node.param1 = readU8(is);
 	node.param2 = readU8(is);
 
-	// Add new properties down here and remember to use either tryRead<> or a try-catch.
 }

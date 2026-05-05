@@ -67,8 +67,10 @@ function core.switch_to_item(item)
 end
 
 function core.get_nearby_objects(radius)
-player = core.localplayer
-if not player then return end
+	local player = core.localplayer
+	if not player then
+		return
+	end
 
 	return core.get_objects_inside_radius(player:get_pos(), radius)
 end

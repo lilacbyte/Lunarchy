@@ -8,11 +8,6 @@
 -- local dump = minetest.debug.dump -- Or your custom dump function
 
 local function main_menu_formspec(this)
-
-	if cache_settings:get(LOGIN_USERNAME_SETTING_NAME)  == nil then
-		cache_settings:set(LOGIN_USERNAME_SETTING_NAME, "")	
-	end
-
 	if this.hidden or (this.parent ~= nil and this.parent.hidden) then
 		return ""
 	end
@@ -23,7 +18,7 @@ local function main_menu_formspec(this)
     local fixed_size = false -- Or true, depending on desired behavior
 
     -- The 'prepend' content from your original get_formspec forms the core of this dialog.
-    local formspec_elements = {
+	local formspec_elements = {
         "formspec_version[8]",
         string.format("size[%f,%f,%s]", width, height, dump(fixed_size)),
         "position[0.015,0.015]",
@@ -35,12 +30,12 @@ local function main_menu_formspec(this)
         "image_button[0,1;4,0.85;;local_btn;" .. fgettext("Local") .. "]",
         -- Online Button
         "image_button[0,2;4,0.85;;online;" .. fgettext("Online") .. "]",
+        -- Accounts Button
+        "image_button[0,3;4,0.85;;accounts;" .. fgettext("Accounts") .. "]",
         -- CSMs Button
-        "image_button[0,3;4,0.85;;csm;" .. fgettext("CSMs") .. "]",
+        "image_button[0,4;4,0.85;;csm;" .. fgettext("CSMs") .. "]",
         -- Content Button
-        "image_button[0,4;4,0.85;;content;" .. fgettext("Content") .. "]",
-        -- Cosmetics Button
-        "image_button[0,5;4,0.85;;cosmetics;" .. fgettext("Cosmetics") .. "]",
+        "image_button[0,5;4,0.85;;content;" .. fgettext("Content") .. "]",
         -- Settings Button
         "image_button[0,6;4,0.85;;settings;" .. fgettext("Settings") .. "]",
         -- About Button
@@ -48,30 +43,9 @@ local function main_menu_formspec(this)
         -- Header Image
         "image[0,0;4,0.8;" .. core.formspec_escape(defaulttexturedir .. "menu_header.png") .. "]",
 
-		-- Secondary menu ( at the bottom )
-
-		-- Logged in as button
-        "style_type[image_button;border=false;textcolor=white;font_size=*0.9;padding=0;font=bold;bgimg=" .. core.formspec_escape(defaulttexturedir .. "menu_account.png") .. ";bgimg_hovered=" .. core.formspec_escape(defaulttexturedir .. "menu_account_hovered.png") .. "]",
-        "image_button[0,14.3;2.84,0.425;;logged_in;        " .. cache_settings:get(LOGIN_USERNAME_SETTING_NAME) .. "]",
-
 		-- Exit button
 		"style_type[image_button;border=false;textcolor=white;font_size=*0.9;padding=0;font=bold;bgimg=" .. core.formspec_escape(defaulttexturedir .. "menu_exit.png") .. ";bgimg_hovered=" .. core.formspec_escape(defaulttexturedir .. "menu_exit_hovered.png") .. "]",
-        "image_button[2.9,14.3;1.4,0.425;;exit;        " .. fgettext("Exit") .. "]",
-
-		-- github button
-
-		"style_type[image_button;border=false;textcolor=white;font_size=*0.9;padding=0;font=bold;bgimg=" .. core.formspec_escape(defaulttexturedir .. "menu_github.png") .. ";bgimg_hovered=" .. core.formspec_escape(defaulttexturedir .. "menu_github_hovered.png") .. "]",
-        "image_button[0,13.8;1.4,0.425;;github;         " .. fgettext("Github") .. "]",
-
-		-- discord button
-
-		"style_type[image_button;border=false;textcolor=white;font_size=*0.9;padding=0;font=bold;bgimg=" .. core.formspec_escape(defaulttexturedir .. "menu_discord.png") .. ";bgimg_hovered=" .. core.formspec_escape(defaulttexturedir .. "menu_discord_hovered.png") .. "]",
-        "image_button[1.45,13.8;1.4,0.425;;discord;         " .. fgettext("Discord") .. "]",
-
-		-- website button
-
-		"style_type[image_button;border=false;textcolor=white;font_size=*0.9;padding=0;font=bold;bgimg=" .. core.formspec_escape(defaulttexturedir .. "menu_web.png") .. ";bgimg_hovered=" .. core.formspec_escape(defaulttexturedir .. "menu_web_hovered.png") .. "]",
-        "image_button[2.9,13.8;1.4,0.425;;website;         " .. fgettext("Website") .. "]",
+        "image_button[0,14.1;4,0.85;;exit;" .. fgettext("Exit") .. "]",
     }
 	return table.concat(formspec_elements, "")
 end
@@ -92,57 +66,45 @@ local function main_menu_buttonhandler(this, fields)
 		dlg:set_parent(this)
 		this:hide()
 		dlg:show()
+		ui.update()
+        return true
+    elseif fields.accounts then
+        local dlg = create_account_manager_dlg()
+		dlg:set_parent(this)
+		this:hide()
+		dlg:show()
+		ui.update()
         return true
     elseif fields.csm then
         local dlg = create_csm_dlg()
 		dlg:set_parent(this)
 		this:hide()
 		dlg:show()
-        return true
-    elseif fields.cosmetics then
-        local dlg = create_cosmetics_dlg()
-		dlg:set_parent(this)
-		this:hide()
-		dlg:show()
+		ui.update()
         return true
     elseif fields.content then
         local dlg = create_content_dlg()
 		dlg:set_parent(this)
 		this:hide()
 		dlg:show()
+		ui.update()
         return true
     elseif fields.settings then
         local dlg = create_settings_dlg()
 		dlg:set_parent(this)
 		this:hide()
 		dlg:show()
+		ui.update()
         return true
     elseif fields.about then
         local dlg = create_about_dlg()
 		dlg:set_parent(this)
 		this:hide()
 		dlg:show()
+		ui.update()
         return true
 	elseif fields.exit then
 		core.close()
-		return true
-	elseif fields.logged_in then
-		core.settings:set(SESSION_TOKEN_SETTING_NAME, "")
-		fetch_capes()
-		local dlg = create_sign_in_dialog()
-		dlg:set_parent(this)
-		this:hide()
-		dlg:show()
-		ui.update()
-		return true
-	elseif fields.github then
-		core.open_url_dialog("https://github.com/TeamAcedia/CloakV4")
-		return true
-	elseif fields.discord then
-		core.open_url_dialog("https://discord.gg/z2bW5h6PXQ")
-		return true
-	elseif fields.website then
-		core.open_url_dialog("https://cloak-v4.web.app")
 		return true
 	elseif fields.try_quit then
 		return true
@@ -158,7 +120,7 @@ local function main_menu_eventhandler(this, event)
 	end
 
 	if event == "MenuQuit" then
-		core.close()
+		return true
 	end
 end
 

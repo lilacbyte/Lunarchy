@@ -67,7 +67,7 @@ void RenderingCore::drawCombatTargetHUD()
         ClientActiveObject *cao = ao_it.second;
         GenericCAO *obj = dynamic_cast<GenericCAO *>(cao);
 
-        if (!obj || combat_target == NULL || obj->getId() != combat_target)
+        if (!obj || combat_target == 0 || obj->getId() != combat_target)
             continue;
 
         // Get screen size
@@ -111,4 +111,3 @@ void RenderingCore::drawCombatTargetHUD()
 		driver->draw2DRectangleOutline(barRect + screen_pos, borderColor, barHeight * 0.2);
     }
 }
-

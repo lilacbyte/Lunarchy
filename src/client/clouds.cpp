@@ -70,6 +70,9 @@ Clouds::~Clouds()
 
 void Clouds::OnRegisterSceneNode()
 {
+	if (g_settings->getBool("no_clouds"))
+		return;
+
 	if(IsVisible)
 	{
 		SceneManager->registerNodeForRendering(this, scene::ESNRP_TRANSPARENT);
@@ -365,6 +368,9 @@ void Clouds::updateMesh()
 
 void Clouds::render()
 {
+	if (g_settings->getBool("no_clouds"))
+		return;
+
 	if (m_params.density <= 0.0f)
 		return; // no need to do anything
 

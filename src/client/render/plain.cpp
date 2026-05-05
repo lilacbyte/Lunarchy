@@ -17,6 +17,7 @@
 #include "settings.h"
 #include "client/mapblock_mesh.h"	
 #include "script/scripting_client.h"
+#include "client/game.h"
 #include "core.h"
 
 // Function to check each neighbor and return the flags of different ones.
@@ -57,7 +58,8 @@ void DrawHUD::run(PipelineContext &context)
 			context.hud->drawCrosshair();
 
 		context.hud->drawLuaElements(context.client->getCamera()->getOffset());
-		if (!g_settings->getBool("nametags")) {	
+		const bool menu_active = isMenuActive();
+		if (!g_settings->getBool("nametags") && !menu_active) {
 			context.client->getCamera()->drawNametags();
 		}
 
@@ -65,8 +67,12 @@ void DrawHUD::run(PipelineContext &context)
 			context.client->getCamera()->drawHealthESP(context.dtime);
 		}
 
-		if (g_settings->getBool("nametags")) {	
+		if (g_settings->getBool("nametags") && !menu_active) {
 			context.client->getCamera()->drawDiffNametag(context.dtime);
+		}
+
+		if (g_settings->getBool("cheat_hud") && m_cheat_menu && !isMenuActive()) {
+			m_cheat_menu->drawHUD(context.device->getVideoDriver(), context.dtime);
 		}
 	}
 	context.device->getGUIEnvironment()->drawAll();
@@ -118,6 +124,11 @@ void DrawTracersAndESP::run(PipelineContext &context)
 	nodeDT = g_settings->getU32("esp.node.drawType");
 	nodeEO = g_settings->getU32("esp.node.edgeOpacity");
 	nodeFO = g_settings->getU32("esp.node.faceOpacity");
+	// Keep all ESP overlays outline-only so they cannot render as giant filled cubes.
+	playerDT = 0;
+	playerFO = 0;
+	targetDT = 0;
+	nodeFO = 0;
 
 	LocalPlayer *player = context.client->getEnv().getLocalPlayer();
 	ClientEnvironment &env = context.client->getEnv();
@@ -182,9 +193,10 @@ void DrawTracersAndESP::run(PipelineContext &context)
 					}
 				}
 			}
-			if (! (draw_esp || draw_tracers)) {
+			if (!(draw_esp || draw_tracers)) {
 				continue;
 			}
+
 			aabb3f box(v3f(0,0,0), v3f(0,0,0));
 			if (!obj->getSelectionBox(&box)) {
 				continue;
@@ -292,7 +304,7 @@ void DrawTracersAndESP::run(PipelineContext &context)
 				
 				if (draw_tunnel_esp) {
 					// Face Opacity is set to 0 to only draw the edges of the box
-					driver->draw3DBox(box, t_color, nodeDT, nodeEO, 0, diffNeighborsTunnel);
+					driver->draw3DBox(box, t_color, nodeDT, nodeEO, nodeFO, diffNeighborsTunnel);
 				}
 				
 				if (draw_tunnel_tracers) {

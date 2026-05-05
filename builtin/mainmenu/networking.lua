@@ -47,7 +47,7 @@ function verify_login_credentials(username, password)
 	return false
 end
 
-function register_account(login_username, hashed_pw)
+function register_account(login_username, password)
 	local http = core.get_http_api()
 	if not http then
 		return "HTTP API not available."
@@ -58,7 +58,7 @@ function register_account(login_username, hashed_pw)
 		timeout = 5,
 		post_data = core.write_json({
 			username = login_username,
-			password = hashed_pw
+			password = password
 		}),
 		extra_headers = {
 			"Content-Type: application/json"
@@ -78,7 +78,7 @@ function register_account(login_username, hashed_pw)
 	end
 end
 
-function login_account(login_username, hashed_pw)
+function login_account(login_username, password)
 	local http = core.get_http_api()
 	if not http then
 		return "HTTP API not available."
@@ -89,7 +89,7 @@ function login_account(login_username, hashed_pw)
 		timeout = 5,
 		post_data = core.write_json({
 			username = login_username,
-			password = hashed_pw
+			password = password
 		}),
 		extra_headers = {
 			"Content-Type: application/json"
@@ -110,7 +110,7 @@ function login_account(login_username, hashed_pw)
 			core.settings:set(SESSION_TOKEN_SETTING_NAME, data.session_token)
 			core.settings:set(TEAMACEDIA_USERNAME_SETTING_NAME, login_username)
 		end
-		cache_settings:set(LOGIN_PASSWORD_SETTING_NAME, hashed_pw)
+		cache_settings:set(LOGIN_PASSWORD_SETTING_NAME, password)
 		cache_settings:set(LOGIN_USERNAME_SETTING_NAME, login_username)
 		fetch_capes()
 		return true

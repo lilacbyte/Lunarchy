@@ -546,6 +546,8 @@ local function get_formspec(dialogdata)
 			left_pane_width, tabsize.height - 1.5),
 		"style_type[button;border=false;bgcolor=#3333]",
 		"style_type[button:hover;border=false;bgcolor=#6663]",
+		"style_type[field;textcolor=#ffffff;bgcolor=#1f1f1fcc]",
+		"style_type[textarea;textcolor=#ffffff;bgcolor=#1f1f1fcc]",
 	}
 
 	local y = 0

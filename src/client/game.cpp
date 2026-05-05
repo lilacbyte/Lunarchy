@@ -1144,13 +1144,26 @@ void Game::processUserInput(f32 dtime)
 	}
 
 	// Reset input if window not active or some menu is active
-	if (!device->isWindowActive() || isMenuActive() || guienv->hasFocus(gui_chat_console.get())) {
+	const bool invmove_enabled = g_settings->getBool("invmove");
+	if (!device->isWindowActive() || guienv->hasFocus(gui_chat_console.get()) ||
+			(isMenuActive() && !invmove_enabled)) {
 		if (m_game_focused) {
 			m_game_focused = false;
 			infostream << "Game lost focus" << std::endl;
 			input->releaseAllKeys();
 		} else {
 			input->clear();
+		}
+
+		if (g_touchcontrols)
+			g_touchcontrols->hide();
+	} else if (isMenuActive() && invmove_enabled) {
+		if (m_game_focused) {
+			m_game_focused = false;
+			infostream << "Game lost focus" << std::endl;
+			input->releaseAllKeysExceptMovement();
+		} else {
+			input->releaseAllKeysExceptMovement();
 		}
 
 		if (g_touchcontrols)
@@ -1194,8 +1207,9 @@ void Game::processUserInput(f32 dtime)
 
 void Game::processKeyInput()
 {
+	const bool invmove_active = isMenuActive() && g_settings->getBool("invmove");
 
-if (g_settings->getBool("use_old_menu")) {
+	if (g_settings->getBool("use_old_menu")) {
 		if (wasKeyDown(KeyType::SELECT_UP)) {
 			m_cheat_menu->selectUp();
 		} else if (wasKeyDown(KeyType::SELECT_DOWN)) {
@@ -1214,7 +1228,7 @@ if (g_settings->getBool("use_old_menu")) {
 	} else if (wasKeyDown(KeyType::AUTOFORWARD)) {
 		toggleAutoforward();
 	} else if (wasKeyDown(KeyType::BACKWARD)) {
-		if (g_settings->getBool("continuous_forward"))
+		if (!invmove_active && g_settings->getBool("continuous_forward"))
 			toggleAutoforward();
 	} else if (wasKeyDown(KeyType::INVENTORY)) {
 		m_game_formspec.showPlayerInventory();
@@ -1239,7 +1253,8 @@ if (g_settings->getBool("use_old_menu")) {
 	} else if (wasKeyDown(KeyType::FREEMOVE)) {
 		toggleFreeMove();
 	} else if (wasKeyDown(KeyType::JUMP)) {
-		toggleFreeMoveAlt();
+		if (!invmove_active)
+			toggleFreeMoveAlt();
 	} else if (wasKeyDown(KeyType::PITCHMOVE)) {
 		togglePitchMove();
 	} else if (wasKeyDown(KeyType::FASTMOVE)) {
@@ -1248,6 +1263,10 @@ if (g_settings->getBool("use_old_menu")) {
 		toggleNoClip();
 	} else if (wasKeyDown(KeyType::FREECAM)) {
 		toggleFreecam();
+	} else if (wasKeyDown(KeyType::CRYSTALSPAM)) {
+		toggleCrystalSpam();
+	} else if (wasKeyDown(KeyType::AUTOWITHER)) {
+		toggleAutoWither();
 	} else if (wasKeyDown(KeyType::KILLAURA)) {
 		toggleKillaura();
 	} else if (wasKeyDown(KeyType::AUTOAIM)) {
@@ -1256,8 +1275,6 @@ if (g_settings->getBool("use_old_menu")) {
 		toggleScaffold();
 	} else if (wasKeyDown(KeyType::BLINK)) {
 		toggleBlink();
-	} else if (wasKeyDown(KeyType::DETACHEDCAMERA)) {
-		toggleDetachedCamera();
 #if USE_SOUND
 	} else if (wasKeyDown(KeyType::MUTE)) {
 		bool new_mute_sound = !g_settings->getBool("mute_sound");
@@ -1283,13 +1300,13 @@ if (g_settings->getBool("use_old_menu")) {
 #endif
 	} else if (wasKeyDown(KeyType::CINEMATIC)) {
 		toggleCinematic();
-	} else if ((wasKeyPressed)(KeyType::SCREENSHOT)) {
+	} else if (wasKeyPressed(KeyType::SCREENSHOT)) {
 		client->makeScreenshot();
 	} else if (wasKeyPressed(KeyType::TOGGLE_BLOCK_BOUNDS)) {
 		toggleBlockBounds();
 	} else if (wasKeyPressed(KeyType::TOGGLE_HUD)) {
 		m_game_ui->toggleHud();
-	} else if (wasKeyDown(KeyType::TOGGLE_CHEAT_MENU)) {	
+	} else if (wasKeyDown(KeyType::TOGGLE_CHEAT_MENU)) {
 		new_menu->create();
 	} else if (wasKeyPressed(KeyType::MINIMAP)) {
 		toggleMinimap(isKeyDown(KeyType::SNEAK));
@@ -1527,6 +1544,30 @@ void Game::toggleFreecam()
 	}
 }
 
+void Game::toggleCrystalSpam()
+{
+	bool crystalspam = !g_settings->getBool("crystalspam");
+	g_settings->set("crystalspam", bool_to_cstr(crystalspam));
+
+	if (crystalspam) {
+		m_game_ui->showTranslatedStatusText("CrystalSpam enabled");
+	} else {
+		m_game_ui->showTranslatedStatusText("CrystalSpam disabled");
+	}
+}
+
+void Game::toggleAutoWither()
+{
+	bool autowither = !g_settings->getBool("autowither");
+	g_settings->set("autowither", bool_to_cstr(autowither));
+
+	if (autowither) {
+		m_game_ui->showTranslatedStatusText("AutoWither enabled");
+	} else {
+		m_game_ui->showTranslatedStatusText("AutoWither disabled");
+	}
+}
+
 void Game::toggleKillaura()
 {
 	bool killaura = ! g_settings->getBool("killaura");
@@ -1548,18 +1589,6 @@ void Game::toggleAutoaim()
 		m_game_ui->showTranslatedStatusText("AutoAim enabled");
 	} else {
 		m_game_ui->showTranslatedStatusText("AutoAim disabled");
-	}
-}
-
-void Game::toggleDetachedCamera()
-{
-	bool dcamera = ! g_settings->getBool("detached_camera");
-	g_settings->set("detached_camera", bool_to_cstr(dcamera));
-
-	if (dcamera) {
-		m_game_ui->showTranslatedStatusText("DetachedCamera enabled");
-	} else {
-		m_game_ui->showTranslatedStatusText("DetachedCamera disabled");
 	}
 }
 
@@ -1910,15 +1939,19 @@ void Game::updatePlayerControl(const CameraOrientation &cam)
 	// In free move (fly), the "toggle_sneak_key" setting would prevent precise
 	// up/down movements. Hence, enable the feature only during 'normal' movement.
 	const bool allow_sneak_toggle = m_cache_toggle_sneak_key && !player->getPlayerSettings().free_move;
+	const bool invmove_active = isMenuActive() && g_settings->getBool("invmove");
+	const auto movement_key = [&](GameKeyType key) {
+		return isKeyDown(key) || (invmove_active && input->isPhysicalKeyDown(key));
+	};
 
 	//TimeTaker tt("update player control", NULL, PRECISION_NANO);
 
 	PlayerControl control(
-		isKeyDown(KeyType::FORWARD),
-		isKeyDown(KeyType::BACKWARD),
-		isKeyDown(KeyType::LEFT),
-		isKeyDown(KeyType::RIGHT),
-		g_settings->getBool("freecam") ? isKeyDown(KeyType::JUMP) : (isKeyDown(KeyType::JUMP) || player->getAutojump()),
+		movement_key(KeyType::FORWARD),
+		movement_key(KeyType::BACKWARD),
+		movement_key(KeyType::LEFT),
+		movement_key(KeyType::RIGHT),
+		g_settings->getBool("freecam") ? movement_key(KeyType::JUMP) : (movement_key(KeyType::JUMP) || player->getAutojump()),
 		getTogglableKeyState(KeyType::AUX1,  m_cache_toggle_aux1_key, player->control.aux1),
 		getTogglableKeyState(KeyType::SNEAK, allow_sneak_toggle,      player->control.sneak),
 		isKeyDown(KeyType::ZOOM),
@@ -2564,7 +2597,7 @@ void Game::processPlayerInteraction(f32 dtime, bool show_hud)
 	core::line3d<f32> shootline;
 
 	if (g_settings->getBool("reach"))
-		d += 2;
+		d += g_settings->getFloat("reach.range", 1.0f, 6.0f);
 
 	switch (camera->getCameraMode()) {
 	case CAMERA_MODE_ANY:
@@ -3474,6 +3507,11 @@ void Game::updateFrame(ProfilerGraph *graph, RunStats *stats, f32 dtime,
 
 void Game::updateClouds(float dtime)
 {
+	if (g_settings->getBool("no_clouds")) {
+		this->clouds->setVisible(false);
+		return;
+	}
+
 	if (this->sky->getCloudsVisible()) {
 		this->clouds->setVisible(true);
 		this->clouds->step(dtime);
@@ -3604,9 +3642,6 @@ void Game::drawScene(ProfilerGraph *graph, RunStats *stats, float dtime)
 	if (!gui_chat_console->isOpen()) {
 		if (m_game_ui->m_flags.show_cheat_menu && g_settings->getBool("use_old_menu") && !new_menu->isOpen())
 			m_cheat_menu->draw(driver, m_game_ui->m_flags.show_minimal_debug);
-		if (g_settings->getBool("cheat_hud")) {
-			m_cheat_menu->drawHUD(driver, dtime);
-		}
 	}
 
 	/*

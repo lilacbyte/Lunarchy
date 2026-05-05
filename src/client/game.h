@@ -663,11 +663,12 @@ protected:
 	void toggleBlockBounds();
 	void toggleAutoforward();
 	void toggleFreecam();
+	void toggleCrystalSpam();
+	void toggleAutoWither();
 	void toggleKillaura();
 	void toggleAutoaim();
 	void toggleScaffold();
-    void toggleBlink();
-	void toggleDetachedCamera();
+	void toggleBlink();
 	
 	void toggleMinimap(bool shift_pressed);
 	void toggleFog();
@@ -728,6 +729,8 @@ protected:
 
 	inline bool fogEnabled()
 	{
+		if (g_settings->getBool("no_fog"))
+			return false;
 		// Client setting only takes effect if fog distance unlimited or debug priv
 		if (sky->getFogDistance() < 0 || client->checkPrivilege("debug"))
 			return m_cache_enable_fog;

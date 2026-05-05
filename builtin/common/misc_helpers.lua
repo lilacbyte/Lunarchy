@@ -749,8 +749,9 @@ function core.pointed_thing_to_face_pos(placer, pointed_thing)
 		return pointed_thing.under
 	end
 
-	local eye_height = placer:get_properties().eye_height
-	local eye_offset_first = placer:get_eye_offset()
+	local props = placer.get_properties and placer:get_properties() or nil
+	local eye_height = props and props.eye_height or 1.625
+	local eye_offset_first = placer.get_eye_offset and placer:get_eye_offset() or {x = 0, y = 0, z = 0}
 	local node_pos = pointed_thing.under
 	local camera_pos = placer:get_pos()
 	local pos_off = vector.multiply(

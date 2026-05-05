@@ -3,6 +3,7 @@
 
 #include "settings.h"
 #include "server.h"
+#include "util/string.h"
 
 void migrate_settings()
 {
@@ -34,5 +35,25 @@ void migrate_settings()
 		bool value = g_settings->getBool("touch_use_crosshair");
 		g_settings->set("touch_interaction_style", value ? "tap_crosshair" : "tap");
 		g_settings->remove("touch_use_crosshair");
+	}
+
+	// Restore the moved HUD color setting under its new name while keeping
+	// older configs readable.
+	if (!g_settings->existsLocal("globalcolor") &&
+			g_settings->existsLocal("global_color")) {
+		g_settings->set("globalcolor", g_settings->get("global_color"));
+	}
+
+	// Preserve the legacy HUD color toggle/value pair.
+	if (g_settings->existsLocal("hudcolor")) {
+		const std::string legacy_hud_color = g_settings->get("hudcolor");
+		video::SColor parsed_color(255, 255, 255, 255);
+		if (parseColorString(legacy_hud_color, parsed_color, true, 0xff)) {
+			g_settings->set("globalcolor", legacy_hud_color);
+			g_settings->setBool("hud_color", true);
+		} else {
+			g_settings->setBool("hud_color", g_settings->getBool("hudcolor"));
+		}
+		g_settings->remove("hudcolor");
 	}
 }

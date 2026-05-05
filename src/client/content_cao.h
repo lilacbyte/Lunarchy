@@ -145,6 +145,7 @@ private:
 	// last applied texture modifier
 	std::string m_current_texture_modifier = "";
 	float m_step_distance_counter = 0.0f;
+	bool m_no_armor_applied = false;
 
 	bool visualExpiryRequired(const ObjectProperties &newprops) const;
 

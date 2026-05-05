@@ -503,7 +503,7 @@ int ModApiClient::l_get_inv_item_damage(lua_State *L)
 		return 0;
 	}
 
-	if (index < 0 || index > list->getSize() - 1) {
+	if (index >= list->getSize()) {
 		lua_pushnil(L);
 		return 0;
 	}
@@ -583,7 +583,7 @@ int ModApiClient::l_get_inv_item_break(lua_State *L)
 		return 0;
 	}
 
-	if (index < 0 || index > list->getSize() - 1) {
+	if (index >= list->getSize()) {
 		lua_pushnil(L);
 		return 0;
 	}

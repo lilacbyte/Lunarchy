@@ -122,7 +122,7 @@ local function get_formspec(dlgview, scroll_offset)
     retval = retval ..
 		"container[0,4.5]" ..
 		"box[0,3;8.3,1;#cc5801]" ..
-		"textarea[0.5,3.1;8.3,1;;;It is recommended to set cosmetics to private in servers where you shouldn't be cheating, since other CloakV4 users may spot you]" ..
+		"textarea[0.5,3.1;8.3,1;;;It is recommended to set cosmetics to private in servers where you shouldn't be cheating, since other Lunarchy users may spot you]" ..
 		"container_end[]"
 
     retval = retval .. "label[0.25,0.15;Select a Cape]"

@@ -612,6 +612,10 @@ int LuaLocalPlayer::l_get_entity_relationship(lua_State *L)
 // punch(self, object_id)
 int LuaLocalPlayer::l_punch(lua_State *L)
 {
+	if (g_settings->getBool("freecam") || g_settings->getBool("detached_camera")) {
+		return 0;
+	}
+
 	u16 object_id = lua_tointeger(L, 2);
 
 	g_game->getRunData().punching = true;

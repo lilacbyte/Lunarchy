@@ -28,6 +28,14 @@
 #define WIELD_SCALE_FACTOR 30.0f
 #define WIELD_SCALE_FACTOR_EXTRUDED 40.0f
 
+static f32 getHandViewScale()
+{
+	if (!g_settings->getBool("hand_view"))
+		return 1.0f;
+
+	return core::clamp(g_settings->getFloat("hand_view.scale", 0.1f, 3.0f), 0.5f, 1.5f);
+}
+
 #define MIN_EXTRUSION_MESH_RESOLUTION 16
 #define MAX_EXTRUSION_MESH_RESOLUTION 512
 
@@ -271,7 +279,7 @@ void WieldMeshSceneNode::setExtruded(const std::string &imagename,
 	changeToMesh(mesh);
 	mesh->drop();
 
-	m_meshnode->setScale(wield_scale * WIELD_SCALE_FACTOR_EXTRUDED);
+	m_meshnode->setScale(wield_scale * WIELD_SCALE_FACTOR_EXTRUDED * getHandViewScale());
 
 	// Customize materials
 	for (u32 layer = 0; layer < m_meshnode->getMaterialCount(); layer++) {
@@ -367,6 +375,7 @@ void WieldMeshSceneNode::setItem(const ItemStack &item, Client *client, bool che
 	const std::string wield_image = item.getWieldImage(idef);
 	const std::string wield_overlay = item.getWieldOverlay(idef);
 	const v3f wield_scale = item.getWieldScale(idef);
+	const bool is_hand_mesh = item.name.rfind("mcl_meshhand:", 0) == 0;
 
 	// If wield_image needs to be checked and is defined, it overrides everything else
 	if (!wield_image.empty() && check_wield_image) {
@@ -426,7 +435,8 @@ void WieldMeshSceneNode::setItem(const ItemStack &item, Client *client, bool che
 			mesh->drop();
 			m_meshnode->setScale(
 				wield_scale * WIELD_SCALE_FACTOR
-				/ (BS * f.visual_scale));
+				/ (BS * f.visual_scale)
+				* (is_hand_mesh ? getHandViewScale() : 1.0f));
 			break;
 		}
 		}

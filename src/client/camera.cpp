@@ -12,6 +12,7 @@
 #include <cmath>
 #include "client/renderingengine.h"
 #include "client/content_cao.h"
+#include "client/item_visuals_manager.h"
 #include "settings.h"
 #include "wieldmesh.h"
 #include "noise.h"         // easeCurve
@@ -26,6 +27,7 @@
 #include <SViewFrustum.h>
 #include <IGUIFont.h>
 #include <IVideoDriver.h>
+#include <algorithm>
 
 static constexpr f32 CAMERA_OFFSET_STEP = 200;
 
@@ -39,7 +41,209 @@ float WIELDMESH_OFFSET_X = 55.0f;
 static const char *setting_names[] = {
 	"view_bobbing_amount", "fov", "arm_inertia",
 	"show_nametag_backgrounds",
+	"hand_view",
+	"hand_view.x",
+	"hand_view.y",
+	"hand_view.z",
+	"hand_view.scale",
+	"nametags.distance",
 };
+
+namespace {
+
+struct NametagItemToken {
+	std::string label;
+	ItemStack item;
+};
+
+static std::string get_item_display_name(const ItemStack &item, Client *client)
+{
+	if (item.empty())
+		return std::string();
+
+	std::string desc;
+	if (client && client->idef())
+		desc = item.getShortDescription(client->idef());
+
+	if (desc.empty())
+		desc = item.name;
+
+	return desc;
+}
+
+static bool texture_mentions_item(const std::string &texture, const std::string &itemstring)
+{
+	std::string needle = itemstring;
+	std::replace(needle.begin(), needle.end(), ':', '_');
+	return texture.find(needle) != std::string::npos;
+}
+
+static void collect_visible_armor_tokens(std::vector<NametagItemToken> &tokens,
+		Client *client, GenericCAO *obj, bool allow_self)
+{
+	if (!client || !obj || !obj->isPlayer() || (obj->isLocalPlayer() && !allow_self))
+		return;
+
+	const ObjectProperties &props = obj->getProperties();
+	if (props.textures.size() < 2)
+		return;
+
+	const std::string &armor_texture = props.textures[1];
+	if (armor_texture.empty() || armor_texture == "blank.png")
+		return;
+
+	static const char *const head_items[] = {
+		"mcl_armor:helmet_leather",
+		"mcl_armor:helmet_gold",
+		"mcl_armor:helmet_chain",
+		"mcl_armor:helmet_copper",
+		"mcl_armor:helmet_iron",
+		"mcl_armor:helmet_diamond",
+		"mcl_armor:helmet_netherite",
+	};
+	static const char *const torso_items[] = {
+		"mcl_armor:chestplate_leather",
+		"mcl_armor:chestplate_gold",
+		"mcl_armor:chestplate_chain",
+		"mcl_armor:chestplate_copper",
+		"mcl_armor:chestplate_iron",
+		"mcl_armor:chestplate_diamond",
+		"mcl_armor:chestplate_netherite",
+		"mcl_armor:elytra",
+	};
+	static const char *const leg_items[] = {
+		"mcl_armor:leggings_leather",
+		"mcl_armor:leggings_gold",
+		"mcl_armor:leggings_chain",
+		"mcl_armor:leggings_copper",
+		"mcl_armor:leggings_iron",
+		"mcl_armor:leggings_diamond",
+		"mcl_armor:leggings_netherite",
+	};
+	static const char *const foot_items[] = {
+		"mcl_armor:boots_leather",
+		"mcl_armor:boots_gold",
+		"mcl_armor:boots_chain",
+		"mcl_armor:boots_copper",
+		"mcl_armor:boots_iron",
+		"mcl_armor:boots_diamond",
+		"mcl_armor:boots_netherite",
+	};
+
+	auto push_if_visible = [&](const char *itemstring) {
+		ItemStack item;
+		item.deSerialize(itemstring, client->idef());
+		if (item.empty())
+			return;
+		if (texture_mentions_item(armor_texture, itemstring)) {
+			std::string label = get_item_display_name(item, client);
+			if (!label.empty())
+				tokens.push_back({label, item});
+		}
+	};
+
+	for (const char *itemstring : head_items)
+		push_if_visible(itemstring);
+	for (const char *itemstring : torso_items)
+		push_if_visible(itemstring);
+	for (const char *itemstring : leg_items)
+		push_if_visible(itemstring);
+	for (const char *itemstring : foot_items)
+		push_if_visible(itemstring);
+}
+
+static void collect_visible_wield_tokens(std::vector<NametagItemToken> &tokens,
+		Client *client, GenericCAO *obj, bool allow_self)
+{
+	if (!client || !obj || !obj->isPlayer() || (obj->isLocalPlayer() && !allow_self))
+		return;
+
+	ClientEnvironment &env = client->getEnv();
+	for (ActiveObject::object_t child_id : obj->getAttachmentChildIds()) {
+		ClientActiveObject *child = env.getActiveObject(child_id);
+		auto *gcao = dynamic_cast<GenericCAO *>(child);
+		if (!gcao || gcao->isLocalPlayer())
+			continue;
+
+		ActiveObject::object_t parent_id = 0;
+		std::string bone;
+		v3f position;
+		v3f rotation;
+		bool force_visible = false;
+		gcao->getAttachment(&parent_id, &bone, &position, &rotation, &force_visible);
+		if (parent_id != obj->getId())
+			continue;
+
+		const ObjectProperties &props = gcao->getProperties();
+		if (props.wield_item.empty())
+			continue;
+
+		ItemStack item;
+		item.deSerialize(props.wield_item, client->idef());
+		std::string label = get_item_display_name(item, client);
+		if (!label.empty())
+			tokens.push_back({label, item});
+	}
+}
+
+static s32 measure_icon_row_width(const std::vector<NametagItemToken> &tokens, s32 icon_size, s32 gap)
+{
+	if (tokens.empty())
+		return 0;
+	return static_cast<s32>(tokens.size()) * icon_size
+		+ static_cast<s32>(tokens.size() - 1) * gap;
+}
+
+static void draw_icon_row(video::IVideoDriver *driver, gui::IGUIFont *font, Client *client,
+		const std::vector<NametagItemToken> &tokens, const v2s32 &center, s32 icon_size,
+		s32 gap)
+{
+	if (!driver || !font || tokens.empty())
+		return;
+
+	s32 row_width = measure_icon_row_width(tokens, icon_size, gap);
+	s32 x = center.X - row_width / 2;
+
+	for (size_t i = 0; i < tokens.size(); ++i) {
+		if (i > 0)
+			x += gap;
+
+		core::rect<s32> icon_rect(x, center.Y, x + icon_size, center.Y + icon_size);
+		video::ITexture *texture = client->getItemVisualsManager()->getInventoryTexture(tokens[i].item, client);
+		if (!texture)
+			texture = client->getTextureSource()->getTexture("no_texture.png");
+		if (texture) {
+			const video::SColor color = client->getItemVisualsManager()->getItemstackColor(tokens[i].item, client);
+			const video::SColor colors[] = { color, color, color, color };
+			draw2DImageFilterScaled(driver, texture, icon_rect,
+				core::rect<s32>({0, 0}, core::dimension2di(texture->getOriginalSize())),
+				nullptr, colors, true);
+		}
+		x += icon_size;
+	}
+}
+
+static void draw_item_name_rows(gui::IGUIFont *font, const std::vector<NametagItemToken> &tokens,
+		const v2s32 &center, s32 icon_size, s32 gap, s32 start_y, s32 line_height)
+{
+	if (!font || tokens.empty())
+		return;
+
+	s32 row_width = measure_icon_row_width(tokens, icon_size, gap);
+	s32 x = center.X - row_width / 2;
+	for (size_t i = 0; i < tokens.size(); ++i) {
+		const auto &token = tokens[i];
+		const core::dimension2d<u32> dim = font->getDimension(utf8_to_wide(token.label).c_str());
+		const s32 text_x = x + (icon_size - static_cast<s32>(dim.Width)) / 2;
+		core::rect<s32> rect(text_x, start_y + static_cast<s32>(i) * line_height,
+				text_x + static_cast<s32>(dim.Width), start_y + static_cast<s32>(i + 1) * line_height);
+		font->draw(utf8_to_wide(token.label).c_str(), rect,
+			video::SColor(255, 255, 255, 255), true, false);
+		x += icon_size + gap;
+	}
+}
+
+}
 
 Camera::Camera(MapDrawControl &draw_control, Client *client, RenderingEngine *rendering_engine):
 	m_draw_control(draw_control),
@@ -71,7 +275,11 @@ Camera::Camera(MapDrawControl &draw_control, Client *client, RenderingEngine *re
 
 void Camera::settingChangedCallback(const std::string &name, void *data)
 {
-	static_cast<Camera *>(data)->readSettings();
+	Camera *camera = static_cast<Camera *>(data);
+	camera->readSettings();
+	if (name.rfind("hand_view", 0) == 0 && camera->m_wieldnode) {
+		camera->m_wieldnode->setItem(camera->m_wield_item_next, camera->m_client);
+	}
 }
 
 void Camera::readSettings()
@@ -505,43 +713,68 @@ void Camera::update(LocalPlayer* player, f32 frametime, f32 tool_reload_ratio)
 	// Make new matrices and frustum
 	m_cameranode->updateMatrices();
 
-	if (m_arm_inertia)
+	if (m_arm_inertia && !g_settings->getBool("lag_optimizer.no_hand_animation"))
 		addArmInertia(yaw);
 
 	// Position the wielded item
 	v3f wield_position = v3f(m_wieldmesh_offset.X, m_wieldmesh_offset.Y, 65);
 	v3f wield_rotation = v3f(-100, 120, -100);
-	wield_position.Y += std::abs(m_wield_change_timer)*320 - 40;
-	if(m_digging_anim < 0.05 || m_digging_anim > 0.5)
-	{
-		f32 frac = 1.0;
-		if(m_digging_anim > 0.5)
-			frac = 2.0 * (m_digging_anim - 0.5);
-		// This value starts from 1 and settles to 0
-		f32 ratiothing = std::pow((1.0f - tool_reload_ratio), 0.5f);
-		f32 ratiothing2 = (easeCurve(ratiothing*0.5))*2.0;
-		wield_position.Y -= frac * 25.0f * std::pow(ratiothing2, 1.7f);
-		wield_position.X -= frac * 35.0f * std::pow(ratiothing2, 1.1f);
-		wield_rotation.Y += frac * 70.0f * std::pow(ratiothing2, 1.4f);
-	}
-	if (m_digging_button != -1)
-	{
-		f32 digfrac = m_digging_anim;
-		wield_position.X -= 50 * std::sin(std::pow(digfrac, 0.8f) * M_PI);
-		wield_position.Y += 24 * std::sin(digfrac * 1.8 * M_PI);
-		wield_position.Z += 25 * 0.5;
+	const bool no_hand_animation = g_settings->getBool("lag_optimizer.no_hand_animation");
+	if (!no_hand_animation) {
+		wield_position.Y += std::abs(m_wield_change_timer) * 320 - 40;
+		if (m_digging_anim < 0.05 || m_digging_anim > 0.5) {
+			f32 frac = 1.0;
+			if (m_digging_anim > 0.5)
+				frac = 2.0 * (m_digging_anim - 0.5);
+			// This value starts from 1 and settles to 0
+			f32 ratiothing = std::pow((1.0f - tool_reload_ratio), 0.5f);
+			f32 ratiothing2 = (easeCurve(ratiothing*0.5))*2.0;
+			wield_position.Y -= frac * 25.0f * std::pow(ratiothing2, 1.7f);
+			wield_position.X -= frac * 35.0f * std::pow(ratiothing2, 1.1f);
+			wield_rotation.Y += frac * 70.0f * std::pow(ratiothing2, 1.4f);
+		}
+		if (m_digging_button != -1) {
+			f32 digfrac = m_digging_anim;
+			wield_position.X -= 50 * std::sin(std::pow(digfrac, 0.8f) * M_PI);
+			wield_position.Y += 24 * std::sin(digfrac * 1.8 * M_PI);
+			wield_position.Z += 25 * 0.5;
 
-		// Euler angles are PURE EVIL, so why not use quaternions?
+			// Euler angles are PURE EVIL, so why not use quaternions?
+			core::quaternion quat_begin(wield_rotation * core::DEGTORAD);
+			core::quaternion quat_end(v3f(80, 30, 100) * core::DEGTORAD);
+			core::quaternion quat_slerp;
+			quat_slerp.slerp(quat_begin, quat_end, std::sin(digfrac * M_PI));
+			quat_slerp.toEuler(wield_rotation);
+			wield_rotation *= core::RADTODEG;
+		} else {
+			f32 bobfrac = my_modf(m_view_bobbing_anim);
+			wield_position.X -= std::sin(bobfrac*M_PI*2.0) * 3.0;
+			wield_position.Y += std::sin(my_modf(bobfrac*2.0)*M_PI) * 3.0;
+		}
+	} else if (m_digging_button != -1) {
+		// Keep the weapon in place, but preserve the swing rotation.
+		f32 digfrac = m_digging_anim;
+		if (m_digging_anim < 0.05 || m_digging_anim > 0.5) {
+			f32 frac = 1.0;
+			if (m_digging_anim > 0.5)
+				frac = 2.0 * (m_digging_anim - 0.5);
+			f32 ratiothing = std::pow((1.0f - tool_reload_ratio), 0.5f);
+			f32 ratiothing2 = (easeCurve(ratiothing * 0.5f)) * 2.0f;
+			wield_rotation.Y += frac * 70.0f * std::pow(ratiothing2, 1.4f);
+		}
 		core::quaternion quat_begin(wield_rotation * core::DEGTORAD);
 		core::quaternion quat_end(v3f(80, 30, 100) * core::DEGTORAD);
 		core::quaternion quat_slerp;
 		quat_slerp.slerp(quat_begin, quat_end, std::sin(digfrac * M_PI));
 		quat_slerp.toEuler(wield_rotation);
 		wield_rotation *= core::RADTODEG;
-	} else {
-		f32 bobfrac = my_modf(m_view_bobbing_anim);
-		wield_position.X -= std::sin(bobfrac*M_PI*2.0) * 3.0;
-		wield_position.Y += std::sin(my_modf(bobfrac*2.0)*M_PI) * 3.0;
+	}
+	if (g_settings->getBool("hand_view")) {
+		const v3f hand_view_offset(
+			core::clamp(g_settings->getFloat("hand_view.x", -100.0f, 100.0f), -12.0f, 12.0f),
+			core::clamp(g_settings->getFloat("hand_view.y", -100.0f, 100.0f), -12.0f, 12.0f),
+			core::clamp(g_settings->getFloat("hand_view.z", -100.0f, 100.0f), -24.0f, 24.0f));
+		wield_position += hand_view_offset;
 	}
 	// Apply left-hand mirroring using quaternions
 	if (g_settings->getBool("left_hand")) {
@@ -618,6 +851,18 @@ void Camera::setDigging(s32 button)
 
 void Camera::wield(const ItemStack &item)
 {
+	if (g_settings->getBool("lag_optimizer.no_hand_animation")) {
+		if (item.name != m_wield_item_next.name || item.metadata != m_wield_item_next.metadata) {
+			m_wield_item_next = item;
+			m_wield_change_timer = 0;
+			if (m_wieldnode) {
+				m_wieldnode->setItem(m_wield_item_next, m_client);
+				m_wieldnode->setLightColorAndAnimation(m_player_light_color,
+					m_client->getAnimationTime());
+			}
+		}
+		return;
+	}
 	if (item.name != m_wield_item_next.name ||
 			item.metadata != m_wield_item_next.metadata) {
 		m_wield_item_next = item;
@@ -737,7 +982,10 @@ void Camera::drawDiffNametag(float dtime)
 
         if (!obj)
             continue;
-        if (obj->isLocalPlayer())
+        const bool allowSelf = g_settings->getBool("nametags.self") &&
+            (g_settings->getBool("freecam") || g_settings->getBool("detached_camera"));
+        const bool showSelf = allowSelf;
+        if (obj->isLocalPlayer() && !showSelf)
             continue;
         if (!obj->isPlayer())
             continue;
@@ -772,10 +1020,16 @@ void Camera::drawDiffNametag(float dtime)
         std::string name = obj->getName();
         int hp = obj->getHp();
 
-        bool showHp = g_settings->getBool("nametags.hp");
-        bool showStatus = g_settings->getBool("nametags.status");
+        const bool showHp = g_settings->getBool("nametags.hp");
+        const bool showStatus = g_settings->getBool("nametags.status");
+        const bool showDistance = g_settings->getBool("nametags.distance");
+        const bool showItemNames = g_settings->getBool("nametags.item_names");
+        const bool showWieldedItems = g_settings->getBool("nametags.wielded_items");
+        const bool showEquipment = g_settings->getBool("nametags.armor");
 
         LocalPlayer *lp = m_client->getEnv().getLocalPlayer();
+        if (!lp)
+            continue;
         int relation_int = lp->getEntityRelationship(obj);
 
         std::string relationStr;
@@ -811,33 +1065,102 @@ void Camera::drawDiffNametag(float dtime)
         std::wstring wname = utf8_to_wide(name);
         std::wstring whp = utf8_to_wide(std::to_string(hp));
         std::wstring wrelation = utf8_to_wide(relationStr);
+        std::wstring wdistance;
+        if (showDistance) {
+            const f32 distance_blocks_f = lp->getPosition().getDistanceFrom(obj->getPosition()) / BS;
+            const s32 distance_blocks = std::max(0, static_cast<s32>(std::floor(distance_blocks_f + 0.5f)));
+            wdistance = utf8_to_wide(" [" + itos(distance_blocks) + " blocks away]");
+        }
 
         auto dim_name = font->getDimension(wname.c_str());
         auto dim_hp = font->getDimension(whp.c_str());
         auto dim_rel = font->getDimension(wrelation.c_str());
+        auto dim_distance = showDistance ? font->getDimension(wdistance.c_str()) : core::dimension2d<u32>(0, 0);
 
-        int totalWidth = dim_name.Width;
+        std::vector<NametagItemToken> item_tokens;
+        if (showWieldedItems)
+            collect_visible_wield_tokens(item_tokens, m_client, obj, allowSelf);
+        if (showEquipment)
+            collect_visible_armor_tokens(item_tokens, m_client, obj, allowSelf);
+
+        const f32 icon_scale = core::clamp(g_settings->getFloat("nametags.icon_scale", 0.5f, 4.0f), 0.5f, 4.0f);
+        const s32 icon_size = std::max<s32>(20, std::min<s32>(72,
+            static_cast<s32>(std::round((dim_name.Height + 8) * icon_scale))));
+        const s32 row_gap = 1;
+        const s32 icon_gap = 2;
+        const s32 item_line_height = std::max<s32>(dim_name.Height, 10) + 1;
+        int lineWidth = dim_name.Width;
+        if (showDistance)
+            lineWidth += 8 + dim_distance.Width;
         if (showHp)
-            totalWidth += 8 + dim_hp.Width;
+            lineWidth += 8 + dim_hp.Width;
         if (showStatus)
-            totalWidth += 8 + dim_rel.Width;
+            lineWidth += 8 + dim_rel.Width;
 
-        int height = std::max({dim_name.Height,
+        const s32 icon_row_width = measure_icon_row_width(item_tokens, icon_size, icon_gap);
+        int textWidth = lineWidth;
+        int nameHeight = std::max({dim_name.Height,
+                               showDistance ? dim_distance.Height : 0,
                                showHp ? dim_hp.Height : 0,
                                showStatus ? dim_rel.Height : 0});
+        int itemNamesHeight = 0;
+        if (!item_tokens.empty()) {
+            if (showItemNames)
+                itemNamesHeight = row_gap + static_cast<s32>(item_tokens.size()) * item_line_height;
+        }
+        int totalHeight = (item_tokens.empty() ? 0 : icon_size + row_gap) + itemNamesHeight + nameHeight;
 
-        int x = screen.X - totalWidth / 2;
-        int y = screen.Y - height / 2;
+        int text_x = screen.X - textWidth / 2;
+        int y = screen.Y - totalHeight / 2;
+        bool drew_text_bg = false;
+        if (!item_tokens.empty()) {
+            draw_icon_row(driver, font, m_client, item_tokens, v2s32(screen.X, y), icon_size, icon_gap);
+            y += icon_size + row_gap;
 
-        core::rect<s32> rectName(x, y,
-                                 x + dim_name.Width,
-                                 y + dim_name.Height);
+            if (showItemNames) {
+                if (m_show_nametag_backgrounds) {
+                    core::rect<s32> bg_rect(
+                        text_x - 2,
+                        y - 1,
+                        text_x + std::max(textWidth, icon_row_width) + 2,
+                        y + itemNamesHeight + nameHeight + 1);
+                    driver->draw2DRectangle(video::SColor(140, 0, 0, 0), bg_rect);
+                    drew_text_bg = true;
+                }
+                draw_item_name_rows(font, item_tokens, v2s32(screen.X, y),
+                        icon_size, icon_gap, y, item_line_height);
+                y += itemNamesHeight;
+            }
+        }
+
+        if (m_show_nametag_backgrounds && !drew_text_bg) {
+            core::rect<s32> bg_rect(
+                text_x - 2,
+                y - 1,
+                text_x + textWidth + 2,
+                y + nameHeight + 1);
+            driver->draw2DRectangle(video::SColor(140, 0, 0, 0), bg_rect);
+        }
+
+        core::rect<s32> rectName(text_x, y, text_x + dim_name.Width, y + dim_name.Height);
 
         font->draw(wname.c_str(), rectName,
                    video::SColor(255, 255, 255, 255),
                    false, false);
 
-        int offsetX = x + dim_name.Width + 8;
+        int offsetX = text_x + dim_name.Width + 8;
+
+        if (showDistance) {
+            core::rect<s32> rectDistance(offsetX, y,
+                                         offsetX + dim_distance.Width,
+                                         y + dim_distance.Height);
+
+            font->draw(wdistance.c_str(), rectDistance,
+                       video::SColor(255, 180, 180, 180),
+                       false, false);
+
+            offsetX += dim_distance.Width + 8;
+        }
 
         if (showHp) {
             core::rect<s32> rectHp(offsetX, y,

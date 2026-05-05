@@ -1058,6 +1058,15 @@ void GenericCAO::step(float dtime, ClientEnvironment *env)
 		}
 	}
 
+	if (m_is_player) {
+		const bool no_armor = g_settings->getBool("no_armor");
+		if (no_armor != m_no_armor_applied) {
+			m_no_armor_applied = no_armor;
+			if (m_reset_textures_timer < 0)
+				updateTextures(m_current_texture_modifier);
+		}
+	}
+
 	if (m_visuals_expired && m_smgr) {
 		m_visuals_expired = false;
 
@@ -1170,8 +1179,10 @@ void GenericCAO::step(float dtime, ClientEnvironment *env)
 		}
 	}
 
-	if (node && std::abs(m_prop.automatic_rotate) > 0.001f) {
-		// This is the child node's rotation. It is only used for automatic_rotate.
+	if (node && std::abs(m_prop.automatic_rotate) > 0.001f &&
+			m_prop.visual != OBJECTVISUAL_ITEM &&
+			m_prop.visual != OBJECTVISUAL_WIELDITEM) {
+		// Dropped items and item-like visuals are kept static to reduce motion noise.
 		v3f local_rot = node->getRotation();
 		local_rot.Y = modulo360f(local_rot.Y - dtime * core::RADTODEG *
 				m_prop.automatic_rotate);
@@ -1329,6 +1340,7 @@ void GenericCAO::updateTextures(std::string mod)
 
 	else if (m_animated_meshnode) {
 		if (m_prop.visual == OBJECTVISUAL_MESH) {
+			const bool no_armor = m_is_player && g_settings->getBool("no_armor");
 			for (u32 i = 0; i < m_animated_meshnode->getMaterialCount(); ++i) {
 				const auto texture_idx = m_animated_meshnode->getMesh()->getTextureSlot(i);
 				if (texture_idx >= m_prop.textures.size())
@@ -1336,6 +1348,8 @@ void GenericCAO::updateTextures(std::string mod)
 				std::string texturestring = m_prop.textures[texture_idx];
 				if (texturestring.empty())
 					continue; // Empty texture string means don't modify that material
+				if (no_armor && texture_idx >= 1)
+					texturestring = "blank.png";
 				texturestring += mod;
 
 				// Set material flags and texture

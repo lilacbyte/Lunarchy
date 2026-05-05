@@ -687,6 +687,10 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 	// When aux1_descends is enabled the fast key is used to go down, so fast isn't possible
 	bool fast_climb = fast_move && correct_control.aux1 && !player_settings.aux1_descends;
 	bool always_fly_fast = player_settings.always_fly_fast;
+	const f32 fly_speed_mult = free_move
+		? g_settings->getFloat("free_move.speed", 0.25f, 8.0f)
+		: 1.0f;
+	const f32 jetpack_speed_mult = g_settings->getFloat("jetpack.speed", 0.25f, 8.0f);
 
 	// Whether superspeed mode is used or not
 	bool superspeed = false;
@@ -695,6 +699,8 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 	// const f32 speed_fast = movement_speed_fast * physics_override.speed_fast;
 
 	f32 new_speed_fast = g_settings->getFloat("movement_speed_fast") * BS;
+	const f32 flight_speed_walk = speed_walk * fly_speed_mult;
+	const f32 flight_speed_fast = new_speed_fast * fly_speed_mult;
 
 	if (always_fly_fast && free_move && fast_move)
 		superspeed = true;
@@ -710,9 +716,9 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 			if (free_move) {
 				// In free movement mode, aux1 descends
 				if (fast_move)
-					speedV.Y = -new_speed_fast;
+					speedV.Y = -flight_speed_fast;
 				else
-					speedV.Y = -speed_walk;
+					speedV.Y = -flight_speed_walk;
 			} else if ((in_liquid || in_liquid_stable) && !m_disable_descend) {
 				speedV.Y = -speed_walk;
 				swimming_vertical = true;
@@ -742,9 +748,9 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 			if (free_move) {
 				// In free movement mode, sneak descends
 				if (fast_move && (correct_control.aux1 || always_fly_fast))
-					speedV.Y = -new_speed_fast;
+					speedV.Y = -flight_speed_fast;
 				else
-					speedV.Y = -speed_walk;
+					speedV.Y = -flight_speed_walk;
 			} else if ((in_liquid || in_liquid_stable) && !m_disable_descend) {
 				if (fast_climb)
 					speedV.Y = -new_speed_fast;
@@ -784,14 +790,14 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 				// Don't fly up if sneak key is pressed
 				if (player_settings.aux1_descends || always_fly_fast) {
 					if (fast_move)
-						speedV.Y = new_speed_fast;
+						speedV.Y = flight_speed_fast;
 					else
-						speedV.Y = speed_walk;
+						speedV.Y = flight_speed_walk;
 				} else {
 					if (fast_move && correct_control.aux1)
-						speedV.Y = new_speed_fast;
+						speedV.Y = flight_speed_fast;
 					else
-						speedV.Y = speed_walk;
+						speedV.Y = flight_speed_walk;
 				}
 			}
 		} else if (m_can_jump || g_settings->getBool("jetpack")) {
@@ -803,6 +809,8 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 			v3f speedJ = getLegitSpeed();
 			if (speedJ.Y >= -0.5f * BS || g_settings->getBool("jetpack")) {
 				speedJ.Y = movement_speed_jump * physics_override.jump;
+				if (g_settings->getBool("jetpack"))
+					speedJ.Y *= jetpack_speed_mult;
 				setLegitSpeed(speedJ);
 				m_client->getEventManager()->put(new SimpleTriggerEvent(MtEvent::PLAYER_JUMP));
 			}
@@ -823,13 +831,15 @@ void LocalPlayer::applyControl(float dtime, Environment *env)
 	// The speed of the player (Y is ignored)
 	if (superspeed || (is_climbing && fast_climb) ||
 			((in_liquid || in_liquid_stable) && fast_climb))
-		speedH = speedH.normalize() * new_speed_fast;
+		speedH = speedH.normalize() * (free_move ? flight_speed_fast : new_speed_fast);
 	else if (correct_control.sneak && !free_move && !in_liquid && !in_liquid_stable && !g_settings->getBool("no_slow"))
 		speedH = speedH.normalize() * movement_speed_crouch * physics_override.speed_crouch;
 	else
-		speedH = speedH.normalize() * speed_walk;
+		speedH = speedH.normalize() * (free_move ? flight_speed_walk : speed_walk);
 
 	speedH *= correct_control.movement_speed; /* Apply analog input */
+	if (!free_move && g_settings->getBool("jetpack") && correct_control.jump)
+		speedH *= jetpack_speed_mult;
 
 	// Acceleration increase
 	f32 incH = 0.0f; // Horizontal (X, Z)

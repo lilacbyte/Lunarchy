@@ -35,12 +35,13 @@ public:
 	std::string m_name;
 	std::string m_type;
 	std::string m_parent;
+	std::string m_setting;
 	double m_min;
 	double m_max;
 	double m_steps;
 	double m_size;
+	double m_order;
 	std::vector<std::string *> m_options;
-	std::string m_setting;
 };
 
 class ScriptApiCheatsCheat
@@ -52,6 +53,7 @@ public:
 	std::string m_name;
 	std::string m_info_text;
 	std::string m_description;
+	double m_order;
 	void set_info_text(std::string infoText);
 	std::string get_info_text();
 	bool is_enabled();
@@ -84,11 +86,13 @@ public:
 	void init_cheat_settings();
 	void update_infotexts();
 	void toggle_cheat(ScriptApiCheatsCheat *cheat);
+	u32 get_cheat_state_revision() const { return m_cheat_state_revision; }
 	void print_all_cheat_settings(); // New function to print cheat settings
 
 	void get_description();
 
 	bool m_cheats_loaded = false;
+	u32 m_cheat_state_revision = 0;
 	std::vector<ScriptApiCheatsCategory *> m_cheat_categories;
 	ScriptApiCheatsCategory* get_category(const std::string &name);
 };

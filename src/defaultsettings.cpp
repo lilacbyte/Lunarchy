@@ -106,6 +106,7 @@ void set_default_settings()
 	settings->setDefault("mesh_generation_threads", "0");
 	settings->setDefault("mesh_buffer_min_vertices", "300");
 	settings->setDefault("free_move", "false");
+	settings->setDefault("free_move.speed", "1.0");
 	settings->setDefault("pitch_move", "false");
 	settings->setDefault("fast_move", "false");
 	settings->setDefault("noclip", "false");
@@ -128,7 +129,6 @@ void set_default_settings()
 	settings->setDefault("enable_raytraced_culling", "true");
 	settings->setDefault("chat_weblink_color", "#8888FF");
 	// Cheat Menu
-	settings->setDefault("cheat_menu_font", "FM_HD");
 	settings->setDefault("cheat_menu_bg_color", "(10, 15, 20)"); //greyish
 	settings->setDefault("cheat_menu_bg_color_alpha", "173");
 	settings->setDefault("cheat_menu_active_bg_color", "(50, 80, 175)"); //blueish
@@ -137,6 +137,11 @@ void set_default_settings()
 	settings->setDefault("cheat_menu_font_color_alpha", "195");
 	settings->setDefault("cheat_menu_selected_font_color", "(0, 0, 0)"); //black
 	settings->setDefault("cheat_menu_selected_font_color_alpha", "235");
+	settings->setDefault("hud_color", "false");
+	settings->setDefault("globalcolor", "#a8c2ff");
+	settings->setDefault("global_color", "#a8c2ff");
+	settings->setDefault("cheat_hud.order", "Ascending");
+	settings->setDefault("cheat_hud.by_length", "true");
 	settings->setDefault("cheat_menu_head_height", "40");
 	settings->setDefault("cheat_menu_entry_height", "25");
 	settings->setDefault("cheat_menu_entry_width", "175");
@@ -144,6 +149,7 @@ void set_default_settings()
 	settings->setDefault("use_hints", "true");
 	settings->setDefault("save_menu_category_positions", "true");
 	settings->setDefault("use_menu_grid", "true");
+	settings->setDefault("mainmenu_last_page", "mainmenu");
 	settings->setDefault("ColorTheme", "Modern");
 	settings->setDefault("WidthMultiplier", "10");
 	
@@ -185,6 +191,14 @@ void set_default_settings()
 	settings->setDefault("combatlog", "false");
 	settings->setDefault("combatlog.hp", "5");
 	settings->setDefault("autototem", "false");
+	settings->setDefault("autogapple", "false");
+	settings->setDefault("autogapple.hp", "10");
+	settings->setDefault("autogapple.restore_delay", "0.15");
+	settings->setDefault("autogapple.use_delay", "1.0");
+	settings->setDefault("crystalspam", "false");
+	settings->setDefault("crystalspam.target_mode", "Players");
+	settings->setDefault("crystalspam.safe", "false");
+	settings->setDefault("crystalspam.self_shield", "true");
 	settings->setDefault("tbot", "false");
 	settings->setDefault("tbot_is_attacking", "false");
 	settings->setDefault("throughwalls", "false");
@@ -203,15 +217,13 @@ void set_default_settings()
 	settings->setDefault("spider", "false");
 	settings->setDefault("autosneak", "false");
 	settings->setDefault("jetpack", "false");
+	settings->setDefault("jetpack.speed", "1.0");
 	settings->setDefault("antislip", "false");
 	settings->setDefault("airjump", "false");
 	settings->setDefault("freecam", "false");
+	settings->setDefault("invmove", "false");
 	settings->setDefault("step", "false");
 	settings->setDefault("step.mult", "2.0");
-	settings->setDefault("BHOP", "false");
-	settings->setDefault("BHOP.speed", "true");
-	settings->setDefault("BHOP.sprint", "true");
-	settings->setDefault("BHOP.jump", "true");
 
 	//MISC
 	settings->setDefault("auto_heal", "false");
@@ -220,9 +232,14 @@ void set_default_settings()
 	settings->setDefault("auto_heal.cooldown", "0.5");
 	settings->setDefault("appleaura", "false");
 	settings->setDefault("appleaura.range", "4");
-	settings->setDefault("spammer", "false");
-	settings->setDefault("spammer.cooldown", "5");
-	settings->setDefault("spammer.message", "message");
+	settings->setDefault("greeter", "false");
+	settings->setDefault("greeter.welcome", "true");
+	settings->setDefault("greeter.welcome_message", "welcome, <%player%> :^)");
+	settings->setDefault("greeter.goodbye", "true");
+	settings->setDefault("greeter.goodbye_message", "goodbye, <%player%> :^(");
+	settings->setDefault("spammer_plus", "false");
+	settings->setDefault("spammer_plus.cooldown", "5");
+	settings->setDefault("spammer_plus.messages", "message");
 	settings->setDefault("autoteam", "false");
 	settings->setDefault("flagaura", "false");
 	settings->setDefault("flagaura.range", "5");
@@ -236,18 +253,26 @@ void set_default_settings()
 	settings->setDefault("use_chat_effects", "false");
 	settings->setDefault("use_chat_color", "true");
 	settings->setDefault("chat_color", "rainbow");
+	settings->setDefault("green_text", "false");
 	settings->setDefault("chat_reverse", "false");
 	settings->setDefault("bypass_filter", "false");
 
 	//PLAYER
 	settings->setDefault("autorespawn", "false");
 	settings->setDefault("lua_control", "false");
+	settings->setDefault("reach.range", "2.0");
 	settings->setDefault("prevent_natural_damage", "false");
 	settings->setDefault("use_old_menu", "false");
+	settings->setDefault("new_menu_open", "false");
 	settings->setDefault("reach", "false");
 	settings->setDefault("priv_bypass", "false");
 	settings->setDefault("no_force_rotate", "false");
 	settings->setDefault("nobob", "false");
+	settings->setDefault("welcome", "false");
+	settings->setDefault("welcome.message", "welcome, <%player%> :^)");
+	settings->setDefault("welcome.align", "Right");
+	settings->setDefault("welcome.color", "#ffffff");
+	settings->setDefault("welcome.background", "true");
 	settings->setDefault("strata", "false");
 
 	//INTERACT
@@ -263,13 +288,15 @@ void set_default_settings()
 
 	//RENDER
 	settings->setDefault("cheat_hud", "true");
-	settings->setDefault("cheat_hud.position", "Top");
-	settings->setDefault("cheat_hud.offset", "true");
+	settings->setDefault("cheat_hud.align", "Right");
+	settings->setDefault("cheat_hud.offset", "0");
+	settings->setDefault("cheat_hud.background", "true");
+	settings->setDefault("cheat_hud.reset", "false");
+	settings->setDefault("cheat_menu_font", "FM_HD");
 	settings->setDefault("fullbright", "false"); 
 	settings->setDefault("no_night", "false");
 	settings->setDefault("xray", "false");
 	settings->setDefault("xray.nodes", "default:stone,mcl_core:stone");
-	settings->setDefault("detached_camera", "false");
 	settings->setDefault("enable_task_nodes", "false");
 	settings->setDefault("enable_task_tracers", "false");
 	settings->setDefault("enable_entity_esp", "false");
@@ -287,7 +314,7 @@ void set_default_settings()
 	settings->setDefault("tunnel_esp_max_height", "3");
 	settings->setDefault("esp.player.drawType", "0");
 	settings->setDefault("esp.player.edgeOpacity", "255");
-	settings->setDefault("esp.player.faceOpacity", "100");
+	settings->setDefault("esp.player.faceOpacity", "0");
 	settings->setDefault("esp.entity.drawType", "0");
 	settings->setDefault("esp.entity.edgeOpacity", "255");
 	settings->setDefault("esp.entity.faceOpacity", "100");
@@ -296,20 +323,55 @@ void set_default_settings()
 	settings->setDefault("esp.node.faceOpacity", "200");
 	settings->setDefault("norender.particles", "false");
 	settings->setDefault("no_hurt_cam", "false");
+	settings->setDefault("no_fog", "false");
+	settings->setDefault("no_clouds", "false");
+	settings->setDefault("no_armor", "false");
 	settings->setDefault("enable_health_esp", "false");
 	settings->setDefault("enable_health_esp.players_only", "true");
 	settings->setDefault("enable_health_esp.type", "Health Bar");
 	settings->setDefault("no_drown_cam", "false");
+	settings->setDefault("no_fire", "false");
 	settings->setDefault("coords", "false");
+	settings->setDefault("coords.background", "true");
+	settings->setDefault("coords.nether_coords", "false");
+	settings->setDefault("clients", "false");
+	settings->setDefault("clients.background", "true");
+	settings->setDefault("ping", "false");
+	settings->setDefault("ping.background", "true");
+	settings->setDefault("content_previewer", "false");
+	settings->setDefault("content_previewer.enderchest", "false");
+	settings->setDefault("content_previewer.shulker", "true");
+	settings->setDefault("content_previewer.maps", "false");
+	settings->setDefault("shulker_preview", "false");
+	settings->setDefault("nearby_clients", "false");
+	settings->setDefault("nearby_clients.background", "true");
+	settings->setDefault("nearby_clients.distance", "true");
+	settings->setDefault("nearby_clients.health", "true");
 	settings->setDefault("enable_combat_target_hud", "false");
 	settings->setDefault("enable_combat_target_hud.target_highlight", "true");
 	settings->setDefault("hud_elements_advice", "true");
 	settings->setDefault("left_hand", "false");
+	settings->setDefault("hand_view", "false");
+	settings->setDefault("hand_view.x", "0.0");
+	settings->setDefault("hand_view.y", "0.0");
+	settings->setDefault("hand_view.z", "0.0");
+	settings->setDefault("hand_view.scale", "1.0");
 	settings->setDefault("nametags", "false");
 	settings->setDefault("nametags.hp", "true");
 	settings->setDefault("nametags.status", "true");
+	settings->setDefault("nametags.distance", "false");
+	settings->setDefault("nametags.item_names", "false");
+	settings->setDefault("nametags.armor", "false");
+	settings->setDefault("nametags.wielded_items", "false");
+	settings->setDefault("nametags.self", "false");
+	settings->setDefault("nametags.icon_scale", "1.0");
 	settings->setDefault("nametags.height", "3");
 	settings->setDefault("fov_setting", "true");
+
+	//CLIENT
+	settings->setDefault("equipment_hud", "false");
+	settings->setDefault("equipment_hud.background", "true");
+	settings->setDefault("equipment_hud.durability_mode", "Both");
 	settings->setDefault("fov.step", "72.0f");
 
 	//WORLD
@@ -370,12 +432,13 @@ void set_default_settings()
 	// see <https://github.com/luanti-org/luanti/issues/12792>
 	USEKEY2("keymap_rangeselect", has_touch ? "SYSTEM_SCANCODE_21" : "", has_touch ? "KEY_KEY_R" : "");
 	
-	settings->setDefault("keymap_toggle_freecam", "KEY_KEY_G");
-	settings->setDefault("keymap_toggle_killaura", "KEY_KEY_X");
-	settings->setDefault("keymap_toggle_autoaim", "KEY_KEY_N");
-	settings->setDefault("keymap_toggle_scaffold", "KEY_KEY_Y");
-	settings->setDefault("keymap_toggle_blink", "KEY_KEY_B");
-	settings->setDefault("keymap_toggle_detached_camera", "KEY_KEY_F");
+	USEKEY2("keymap_toggle_freecam", "SYSTEM_SCANCODE_10", "KEY_KEY_G");
+	USEKEY2("keymap_toggle_crystalspam", "SYSTEM_SCANCODE_6", "KEY_KEY_C");
+	USEKEY2("keymap_toggle_autowither", "KEY_MINUS", "KEY_MINUS");
+	USEKEY2("keymap_toggle_killaura", "SYSTEM_SCANCODE_27", "KEY_KEY_X");
+	USEKEY2("keymap_toggle_autoaim", "SYSTEM_SCANCODE_17", "KEY_KEY_N");
+	USEKEY2("keymap_toggle_scaffold", "SYSTEM_SCANCODE_29", "KEY_KEY_Y");
+	USEKEY2("keymap_toggle_blink", "SYSTEM_SCANCODE_5", "KEY_KEY_B");
 	USEKEY2("keymap_freemove", "SYSTEM_SCANCODE_14", "KEY_KEY_K");
 	settings->setDefault("keymap_pitchmove", "");
 	USEKEY2("keymap_fastmove", "SYSTEM_SCANCODE_13", "KEY_KEY_J");
@@ -412,11 +475,11 @@ void set_default_settings()
 	USEKEY2("keymap_slot8", "SYSTEM_SCANCODE_37", "KEY_KEY_8");
 	USEKEY2("keymap_slot9", "SYSTEM_SCANCODE_38", "KEY_KEY_9");
 	USEKEY2("keymap_slot10", "SYSTEM_SCANCODE_39", "KEY_KEY_0");
-	settings->setDefault("keymap_toggle_cheat_menu", "KEY_F8");
-	settings->setDefault("keymap_select_up", "KEY_UP");
-	settings->setDefault("keymap_select_down", "KEY_DOWN");
-	settings->setDefault("keymap_select_left", "KEY_LEFT");
-	settings->setDefault("keymap_select_right", "KEY_RIGHT");
+	USEKEY2("keymap_toggle_cheat_menu", "SYSTEM_SCANCODE_65", "KEY_F8");
+	USEKEY2("keymap_select_up", "SYSTEM_SCANCODE_82", "KEY_UP");
+	USEKEY2("keymap_select_down", "SYSTEM_SCANCODE_81", "KEY_DOWN");
+	USEKEY2("keymap_select_left", "SYSTEM_SCANCODE_80", "KEY_LEFT");
+	USEKEY2("keymap_select_right", "SYSTEM_SCANCODE_79", "KEY_RIGHT");
 	USEKEY2("keymap_select_confirm", "SYSTEM_SCANCODE_40", "KEY_RETURN");
 	settings->setDefault("keymap_slot11", "");
 	settings->setDefault("keymap_slot12", "");
@@ -541,6 +604,9 @@ void set_default_settings()
 	settings->setDefault("post_processing_texture_bits", "16");
 	settings->setDefault("directional_colored_fog", "true");
 	settings->setDefault("inventory_items_animations", "false");
+	settings->setDefault("lag_optimizer.no_inventory_animations", "true");
+	settings->setDefault("lag_optimizer.no_item_spin", "false");
+	settings->setDefault("lag_optimizer.no_hand_animation", "true");
 	settings->setDefault("mip_map", "false");
 	settings->setDefault("bilinear_filter", "false");
 	settings->setDefault("trilinear_filter", "false");

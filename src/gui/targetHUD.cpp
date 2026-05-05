@@ -83,6 +83,9 @@ void drawTargetHud(video::IVideoDriver* driver, gui::IGUIFont* font, double inte
 }
 
 void TargetHUD::draw(video::IVideoDriver* driver, gui::IGUIFont* font, float dtime, ClientEnvironment &env, bool editing) {
+	if (!hudShouldRender(editing))
+		return;
+
 	if (g_settings->getBool("enable_combat_target_hud")) {
 		if (editing) {
 			drawTargetHud(driver, font, 10, 20, bounds, L"Target");

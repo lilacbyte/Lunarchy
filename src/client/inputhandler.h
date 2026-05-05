@@ -74,6 +74,50 @@ public:
 		keyIsDown.reset();
 	}
 
+	void releaseAllKeysExceptMovement()
+	{
+		// Keep movement keys alive for InvMove, but clear everything else so
+		// menus/formspecs do not leave dig/place/chat-style inputs stuck on.
+		static const std::array<GameKeyType, 6> keep = {
+			KeyType::FORWARD,
+			KeyType::BACKWARD,
+			KeyType::LEFT,
+			KeyType::RIGHT,
+			KeyType::JUMP,
+			KeyType::SNEAK,
+		};
+
+		auto is_kept = [](GameKeyType key) {
+			for (GameKeyType kept : keep) {
+				if (kept == key)
+					return true;
+			}
+			return false;
+		};
+
+		for (auto it = physicalKeyDown.begin(); it != physicalKeyDown.end(); ) {
+			KeyPress key = *it;
+			auto found = keysListenedFor.find(key);
+			if (found == keysListenedFor.end() || !is_kept(found->second)) {
+				it = physicalKeyDown.erase(it);
+			} else {
+				++it;
+			}
+		}
+
+		for (int i = 0; i < KeyType::INTERNAL_ENUM_COUNT; ++i) {
+			GameKeyType key = static_cast<GameKeyType>(i);
+			if (is_kept(key))
+				continue;
+			keyWasReleased.set(key, keyIsDown.test(i));
+			keyIsDown.reset(key);
+			keyWasDown.reset(key);
+			keyWasPressed.reset(key);
+		}
+
+		mouse_wheel = 0;
+	}
+
 	void clearWasKeyPressed()
 	{
 		keyWasPressed.reset();
@@ -149,6 +193,7 @@ public:
 	}
 
 	virtual bool isKeyDown(GameKeyType k) = 0;
+	virtual bool isPhysicalKeyDown(GameKeyType k) const = 0;
 	virtual bool wasKeyDown(GameKeyType k) = 0;
 	virtual bool wasKeyPressed(GameKeyType k) = 0;
 	virtual bool wasKeyReleased(GameKeyType k) = 0;
@@ -173,6 +218,7 @@ public:
 
 	virtual void clear() {}
 	virtual void releaseAllKeys() {}
+	virtual void releaseAllKeysExceptMovement() {}
 
 	static void settingChangedCallback(const std::string &name, void *data)
 	{
@@ -203,6 +249,10 @@ public:
 	virtual bool isKeyDown(GameKeyType k)
 	{
 		return m_receiver->IsKeyDown(k) || joystick.isKeyDown(k);
+	}
+	virtual bool isPhysicalKeyDown(GameKeyType k) const
+	{
+		return m_receiver->physicalKeyDown.find(m_receiver->keybindings[k]) != m_receiver->physicalKeyDown.end();
 	}
 	virtual bool wasKeyDown(GameKeyType k)
 	{
@@ -270,6 +320,12 @@ public:
 		m_receiver->releaseAllKeys();
 	}
 
+	void releaseAllKeysExceptMovement()
+	{
+		joystick.releaseAllKeys();
+		m_receiver->releaseAllKeysExceptMovement();
+	}
+
 private:
 	MyEventReceiver *m_receiver = nullptr;
 	v2s32 m_mousepos;
@@ -286,6 +342,7 @@ public:
 	}
 
 	virtual bool isKeyDown(GameKeyType k) { return keydown[k]; }
+	virtual bool isPhysicalKeyDown(GameKeyType k) const { return keydown[k]; }
 
 	virtual void setKeypress(const KeyPress &keyCode)
 	{

@@ -4,6 +4,7 @@
 #include "client/content_cao.h"
 #include <IVideoDriver.h>
 #include <IGUIFont.h>
+#include "gui/mainmenumanager.h"
 
 using namespace irr;
 using namespace gui;
@@ -28,3 +29,8 @@ public:
     bool isResizeHovered = false;
     std::string elementName;
 };
+
+static inline bool hudShouldRender(bool editing)
+{
+	return editing || !isMenuActive();
+}

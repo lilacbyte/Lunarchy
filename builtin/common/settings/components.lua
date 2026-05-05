@@ -82,14 +82,15 @@ local function make_field(converter, validator, stringifier)
 			get_formspec = function(self, avail_w)
 				local value = core.settings:get(setting.name) or setting.default
 				self.resettable = core.settings:has(setting.name)
+				local button_w = math.max(avail_w, 2.0)
 
 				local fs = ("field[0,0.3;%f,0.8;%s;%s;%s]"):format(
-					avail_w - 1.5, setting.name, get_label(setting), core.formspec_escape(value))
+					avail_w, setting.name, get_label(setting), core.formspec_escape(value))
 				fs = fs .. ("field_enter_after_edit[%s;true]"):format(setting.name)
 				fs = fs .. ("field_close_on_enter[%s;false]"):format(setting.name) -- for pause menu env
-				fs = fs .. ("button[%f,0.3;1.5,0.8;%s;%s]"):format(avail_w - 1.5, "set_" .. setting.name, fgettext("Set"))
+				fs = fs .. ("button[0,1.15;%f,0.8;%s;%s]"):format(button_w, "set_" .. setting.name, fgettext("Set"))
 
-				return fs, 1.1
+				return fs, 2.0
 			end,
 
 			on_submit = function(self, fields)
@@ -200,19 +201,20 @@ local function make_path(setting)
 		info_text = setting.comment,
 		setting = setting,
 
-		get_formspec = function(self, avail_w)
-			local value = core.settings:get(setting.name) or setting.default
-			self.resettable = core.settings:has(setting.name)
+			get_formspec = function(self, avail_w)
+				local value = core.settings:get(setting.name) or setting.default
+				self.resettable = core.settings:has(setting.name)
+				local button_w = math.max((avail_w - 0.125) / 2, 1.0)
 
-			local fs = ("field[0,0.3;%f,0.8;%s;%s;%s]"):format(
-				avail_w - 3, setting.name, get_label(setting), core.formspec_escape(value))
-			fs = fs .. ("field_enter_after_edit[%s;true]"):format(setting.name)
-			fs = fs .. ("field_close_on_enter[%s;false]"):format(setting.name) -- for pause menu env
-			fs = fs .. ("button[%f,0.3;1.5,0.8;%s;%s]"):format(avail_w - 3, "pick_" .. setting.name, fgettext("Browse"))
-			fs = fs .. ("button[%f,0.3;1.5,0.8;%s;%s]"):format(avail_w - 1.5, "set_" .. setting.name, fgettext("Set"))
+				local fs = ("field[0,0.3;%f,0.8;%s;%s;%s]"):format(
+					avail_w, setting.name, get_label(setting), core.formspec_escape(value))
+				fs = fs .. ("field_enter_after_edit[%s;true]"):format(setting.name)
+				fs = fs .. ("field_close_on_enter[%s;false]"):format(setting.name) -- for pause menu env
+				fs = fs .. ("button[0,1.15;%f,0.8;%s;%s]"):format(button_w, "pick_" .. setting.name, fgettext("Browse"))
+				fs = fs .. ("button[%f,1.15;%f,0.8;%s;%s]"):format(button_w + 0.25, button_w, "set_" .. setting.name, fgettext("Set"))
 
-			return fs, 1.1
-		end,
+				return fs, 2.0
+			end,
 
 		on_submit = function(self, fields)
 			local dialog_name = "dlg_path_" .. setting.name

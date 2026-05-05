@@ -185,25 +185,31 @@ invert_hotbar_mouse_wheel (Hotbar: Invert mouse wheel direction) bool false
 [**Keybindings]
 
 #    Key for toggling the Click GUI.
-keymap_toggle_cheat_menu (Toggle Click GUI) key KEY_KEY_F8
-
-#    Key for toggling DetachedCamera.
-keymap_toggle_detached_camera(Detached Camera) key KEY_KEY_F
+keymap_toggle_cheat_menu (Toggle Click GUI) key SYSTEM_SCANCODE_65
 
 #    Key for toggling Freecam.
-keymap_toggle_freecam (Freecam) key KEY_KEY_G
+keymap_toggle_freecam (Freecam) key SYSTEM_SCANCODE_10
+
+#    Key for toggling CrystalSpam.
+keymap_toggle_crystalspam (CrystalSpam) key SYSTEM_SCANCODE_6
+
+#    Key for toggling AutoWither.
+keymap_toggle_autowither (AutoWither) key KEY_MINUS
+
+#    Automatically name the spawned wither when AutoWither nametag is enabled.
+autowither.nametag_text (AutoWither Nametag Text) string Wither
 
 #    Key for toggling Killaura.
-keymap_toggle_killaura (Killaura) key KEY_KEY_X
+keymap_toggle_killaura (Killaura) key SYSTEM_SCANCODE_27
 
 #    Key for toggling AutoAim.
-keymap_toggle_autoaim (AutoAim) key KEY_KEY_N
+keymap_toggle_autoaim (AutoAim) key SYSTEM_SCANCODE_17
 
 #    Key for toggling Scaffold.
-keymap_toggle_scaffold (Scaffold) key KEY_KEY_Y
+keymap_toggle_scaffold (Scaffold) key SYSTEM_SCANCODE_29
 
 #    Key for toggling Blink.
-keymap_toggle_blink (Blink) key KEY_KEY_B
+keymap_toggle_blink (Blink) key SYSTEM_SCANCODE_5
 
 #    Key for moving the player forward.
 keymap_forward (Move forward) key SYSTEM_SCANCODE_26
@@ -2624,7 +2630,7 @@ More actions
 
 ~#   Font to use for cheat menu
 
-~cheat_menu_font (MenuFont) enum FM_Mono FM_Standard,FM_Mono,FM_Fallback,FM_Simple,FM_SimpleMono,FM_MaxMode,FM_Unspecified
+~cheat_menu_font (MenuFont) enum FM_HD FM_Standard,FM_Mono,FM_Fallback,FM_Simple,FM_SimpleMono,FM_MaxMode,FM_Unspecified
 
 ~
 
@@ -2640,7 +2646,7 @@ More actions
 
 ~#   (RGB value)
 
-~cheat_menu_active_bg_color (Active cell background color) v3f 255, 87, 53
+~cheat_menu_active_bg_color (Active cell background color) v3f 255, 105, 180
 
 ~
 

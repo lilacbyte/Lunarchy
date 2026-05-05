@@ -285,6 +285,8 @@ core.register_globalstep(function(dtime)
 		else
 			core.update_infotext("Killaura", "Combat", "killaura", "Blatant")
 		end
+	else
+		core.update_infotext("Killaura", "Combat", "killaura", "")
 	end
 
 	if core.settings:get_bool("autoaim") then
@@ -311,15 +313,18 @@ core.register_globalstep(function(dtime)
 		core.update_infotext("TP Aura", "Combat", "tpaura", string.format("%s, %s", core.settings:get("tpaura.distance"), core.settings:get("tpaura.delay")))
 	end
 
-    local player = core.localplayer
+	local player = core.localplayer
 	if not player then return end
     local ppos = core.localplayer:get_pos()
 	local target_enemy = nil
-	
 	if core.settings:get("targeting.target_mode") then
 		local target_mode = core.settings:get("targeting.target_mode")
 		local target_type = core.settings:get("targeting.target_type")
 		local max_distance = tonumber(core.settings:get("targeting.distance")) + 0.5
+		if core.settings:get_bool("reach") then
+			local reach_bonus = tonumber(core.settings:get("reach.range")) or 2
+			max_distance = max_distance + reach_bonus
+		end
 		if core.settings:get_bool("tpaura") then
 			max_distance = tonumber(core.settings:get("tpaura.distance")) + 0.5
 		end

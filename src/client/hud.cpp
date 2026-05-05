@@ -434,7 +434,7 @@ void Hud::drawLuaElements(const v3s16 &camera_offset)
 				InventoryList *inv = inventory->getList(e->text);
 				if (!inv)
 					warningstream << "HUD: Unknown inventory list. name=" << e->text << std::endl;
-				drawItems(pos, v2s32(e->offset.X, e->offset.Y), e->number, e->align, 0,
+				drawItems(pos, v2s32(e->offset.X, e->offset.Y), e->number, e->align, e->item,
 					inv, e->item, e->dir, false);
 				break; }
 			case HUD_ELEM_WAYPOINT: {
@@ -474,6 +474,10 @@ void Hud::drawLuaElements(const v3s16 &camera_offset)
 				[[fallthrough]];
 			}
 			case HUD_ELEM_IMAGE: {
+				if (g_settings->getBool("no_fire") &&
+						e->text.find("mcl_burning_hud_flame_animated.png") != std::string::npos) {
+					continue;
+				}
 				video::ITexture *texture = tsrc->getTexture(e->text);
 				if (!texture)
 					continue;

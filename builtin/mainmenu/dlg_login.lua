@@ -7,6 +7,7 @@ local function get_message_formspec(this)
 		"formspec_version[8]",
 		"size[4,3]",
 		"bgcolor[;neither;]",
+		"box[0,0;4,3;#1f2328]",
 
 		-- Header image
 		"image[0,0;4,0.8;" .. core.formspec_escape(defaulttexturedir .. "menu_header.png") .. "]",
@@ -80,6 +81,7 @@ local function get_formspec(dialogdata)
 		"formspec_version[8]",
 		"size[5,6]",
 		"bgcolor[;neither;]",
+		"box[0,0;5,6;#1f2328]",
 
 		-- Header image
 		"image[0,0;5,1;" .. core.formspec_escape(defaulttexturedir .. "menu_header.png") .. "]",
@@ -112,14 +114,17 @@ local function buttonhandler(this, fields)
 	local password = fields.password or ""
 
 	if fields.login then
-		if login_username == "" or password == "" then
+		if login_username == "" then
 			show_message_dialog(fgettext("You must enter a username and password."))
 			return true
 		end
 
-		local hashed_pw = core.sha256(password)
+		if password == "" then
+			show_message_dialog(fgettext("Password is required."))
+			return true
+		end
 
-		local result = login_account(login_username, hashed_pw)
+		local result = login_account(login_username, password)
 
 		if result == true then
 			show_message_dialog(fgettext("Successfully logged in."), true)

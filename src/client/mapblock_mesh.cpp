@@ -783,11 +783,10 @@ MapBlockMesh::MapBlockMesh(Client *client, MeshMakeData *data):
 
 	/*
 	  X-Ray settings
+	  The xray mesh path is disabled here so hidden blocks do not leak
+	  into the world render, even if a config flips xray on later.
 	*/
 	std::set<content_t> xraySet;
-	if (g_settings->getBool("xray"))
-		xraySet = splitToContentT(
-			g_settings->get("xray.nodes"), data->m_nodedef);
 	// algin vertices to mesh grid, not meshgen area
 	v3f offset = intToFloat((data->m_blockpos - mesh_grid.getMeshPos(data->m_blockpos)) * MAP_BLOCKSIZE, BS);
 
