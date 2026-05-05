@@ -13,6 +13,7 @@ Difference from CloakV4:
     - AutoArmor - puts on armor automatically
     - AutoWither - builds a wither automatically
         - can also apply nametags too
+    - NoArmor - hides player's armor
 - Extra Modules
     - HandView - change position and scale of hand
     - EquipmentHUD - shows equipment durability
@@ -32,5 +33,5 @@ Difference from CloakV4:
     - ChatEffects
         - ChatColor can have gradients too
         - Derp, redacted, Reversed options
-        
+
 <img src="doc/showcase1.png" alt="showcase" width="80%" />
